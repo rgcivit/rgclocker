@@ -77,8 +77,8 @@ async function startServer() {
     console.log('PostgreSQL database connection established successfully.');
 
     // Sync database models
-    // In dev: alter is safe; for production we might want migrations or simple sync
-    await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
+    // Automatically sync database tables and new columns (safe for easy cloud prototypes)
+    await sequelize.sync({ alter: true });
     console.log('Database models synchronized successfully.');
 
     // Seed master user: locker / Tabulario-801
