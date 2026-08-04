@@ -23,16 +23,18 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, postman/curl, or server-to-server)
     if (!origin) return callback(null, true);
     
-    // Check if the request origin is in the allowed list or if a wildcard is configured
-    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+    // Check if origin is a vercel subdomain
+    const isVercel = origin.endsWith('.vercel.app');
+    
+    // Check if the request origin is in the allowed list, or is Vercel, or is wildcarded
+    if (allowedOrigins.indexOf(origin) !== -1 || isVercel || allowedOrigins.includes('*') || process.env.FRONTEND_URL === '*') {
       callback(null, true);
     } else {
       callback(new Error(`Origin ${origin} not allowed by CORS`));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Locker-Token'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Locker-Token']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
