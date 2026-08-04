@@ -19,12 +19,15 @@ async function register(req, res) {
       return res.status(400).json({ error: 'Bad Request', message: 'All fields (username, email, password) are required.' });
     }
 
+    const normalizedUsername = username.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Check if user already exists
     const existingUser = await User.findOne({
       where: {
         [User.sequelize.Sequelize.Op.or]: [
-          { username },
-          { email }
+          { username: normalizedUsername },
+          { email: normalizedEmail }
         ]
       }
     });
@@ -41,8 +44,8 @@ async function register(req, res) {
 
     // Create user
     const newUser = await User.create({
-      username,
-      email,
+      username: normalizedUsername,
+      email: normalizedEmail,
       passwordHash
     });
 
@@ -79,8 +82,10 @@ async function login(req, res) {
       return res.status(400).json({ error: 'Bad Request', message: 'Username and password are required.' });
     }
 
+    const normalizedUsername = username.trim().toLowerCase();
+
     // Find user
-    const user = await User.findOne({ where: { username } });
+    const user = await User.findOne({ where: { username: normalizedUsername } });
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized', message: 'Invalid username or password.' });
     }
