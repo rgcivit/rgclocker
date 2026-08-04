@@ -93,7 +93,8 @@ async function startServer() {
       await User.create({
         username: masterUsername,
         email: masterEmail,
-        passwordHash
+        passwordHash,
+        isActive: true // Master user is pre-activated!
       });
       console.log(`Master user '${masterUsername}' successfully seeded!`);
     } else {

@@ -28,6 +28,16 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false,
     field: 'password_hash'
+  },
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_active'
+  },
+  activationCode: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'activation_code'
   }
 }, {
   tableName: 'users'

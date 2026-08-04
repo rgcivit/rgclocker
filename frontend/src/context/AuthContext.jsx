@@ -39,6 +39,15 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       return { success: true };
     } catch (error) {
+      const data = error.response?.data;
+      if (data && data.requireActivation) {
+        return {
+          success: false,
+          requireActivation: true,
+          username: data.username,
+          message: data.message
+        };
+      }
       return {
         success: false,
         message: error.response?.data?.message || 'Login failed. Check your connection or credentials.'
@@ -49,6 +58,23 @@ export const AuthProvider = ({ children }) => {
   const register = async (username, email, password) => {
     try {
       const response = await api.post('/auth/register', { username, email, password });
+      return { 
+        success: true, 
+        requireActivation: true, 
+        username: response.data.username,
+        message: response.data.message 
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Registration failed.'
+      };
+    }
+  };
+
+  const activateAccount = async (username, code) => {
+    try {
+      const response = await api.post('/auth/activate', { username, code });
       const { token: userToken, user: userData } = response.data;
       
       sessionStorage.setItem('rgclocker_token', userToken);
@@ -58,7 +84,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Registration failed.'
+        message: error.response?.data?.message || 'Código de activación incorrecto.'
       };
     }
   };
@@ -79,7 +105,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, activateAccount, logout }}>
       {children}
     </AuthContext.Provider>
   );
