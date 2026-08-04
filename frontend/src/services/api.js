@@ -2,10 +2,19 @@ import axios from 'axios';
 
 let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Defensive check: If VITE_API_URL is missing the '/api' suffix, automatically append it
-if (API_URL && !API_URL.endsWith('/api') && !API_URL.endsWith('/api/')) {
-  API_URL = API_URL.replace(/\/$/, '') + '/api';
+// 1. Remove any trailing slashes from the API URL
+API_URL = API_URL.trim().replace(/\/+$/, '');
+
+// 2. Fix potential duplicate '/api/api' that can occur from misconfigured env vars
+API_URL = API_URL.replace(/\/api\/api$/, '/api');
+
+// 3. If it does not end with '/api', automatically append it
+if (!API_URL.endsWith('/api')) {
+  API_URL = API_URL + '/api';
 }
+
+// 4. Force a single trailing slash at the end so Axios handles path concatenation correctly
+API_URL = API_URL + '/';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -17,6 +26,11 @@ const api = axios.create({
 // Request interceptor to automatically add JWT and Locker Tokens
 api.interceptors.request.use(
   (config) => {
+    // Force relative URLs to NOT have a leading slash so they combine correctly with baseURL's path
+    if (config.url && config.url.startsWith('/')) {
+      config.url = config.url.substring(1);
+    }
+
     // 1. Level 1 Security: Global JWT
     const token = sessionStorage.getItem('rgclocker_token');
     if (token) {
