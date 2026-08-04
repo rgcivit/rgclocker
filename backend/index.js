@@ -10,11 +10,29 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middlewares
+// Secure CORS configuration
+const allowedOrigins = [
+  'http://localhost:5173', // Vite local development frontend
+  'http://localhost:3000', // Alt local dev port
+  'http://127.0.0.1:5173',
+  process.env.FRONTEND_URL  // Production frontend URL (Vercel)
+].filter(Boolean);
+
 app.use(cors({
-  origin: '*', // We can restrict this in production
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, postman/curl, or server-to-server)
+    if (!origin) return callback(null, true);
+    
+    // Check if the request origin is in the allowed list or if a wildcard is configured
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Locker-Token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Locker-Token'],
+  credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

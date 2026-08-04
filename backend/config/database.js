@@ -17,10 +17,10 @@ const sequelize = new Sequelize(dbUrl || 'postgres://postgres:postgres@localhost
     timestamps: true,
     underscored: true, // Use snake_case for column names in the DB
   },
-  dialectOptions: process.env.NODE_ENV === 'production' ? {
+  dialectOptions: (process.env.NODE_ENV === 'production' || (dbUrl && !dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1'))) ? {
     ssl: {
       require: true,
-      rejectUnauthorized: false // Required for platforms like Render, Heroku
+      rejectUnauthorized: false // Required for cloud databases like Render, Railway, Supabase, Neon
     }
   } : {}
 });

@@ -21,33 +21,20 @@ services:
       - key: ENCRYPTION_KEY
         sync: false
         placeholder: "Genera una clave de 64 caracteres hexadecimales (32 bytes)"
-      - key: GOOGLE_SERVICE_ACCOUNT_KEY_PATH
-        value: google-service-account.json
+      
+      # Google Drive OAuth2 Credentials
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+        placeholder: "ID de cliente OAuth2 de Google"
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+        placeholder: "Secreto de cliente OAuth2 de Google"
+      - key: GOOGLE_REFRESH_TOKEN
+        sync: false
+        placeholder: "Token de actualización (Refresh Token) de OAuth2 de Google"
       - key: GOOGLE_DRIVE_FOLDER_ID
         sync: false
-        placeholder: "ID de carpeta de Google Drive compartida con el Service Account"
-
-  # Frontend Single Page App (Static Hosting)
-  - type: web
-    name: rgclocker-frontend
-    env: static
-    buildCommand: cd frontend && npm install && npm run build
-    publishPath: frontend/dist
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: no-cache
-    routes:
-      - type: rewrite
-        src: /*
-        dest: /index.html
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          type: web
-          name: rgclocker-backend
-          property: host
-          path: /api
+        placeholder: "ID de la carpeta destino de Google Drive"
 
 databases:
   - name: rgclocker-db
