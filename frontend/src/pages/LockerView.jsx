@@ -6,14 +6,14 @@ import api from '../services/api';
 import PdfViewer from '../components/PdfViewer';
 import { 
   ArrowLeft, Lock, FileText, Upload, Trash2, Eye, Download, 
-  Loader2, AlertTriangle, CloudUpload 
+  Loader2, AlertTriangle, CloudUpload, Pencil 
 } from 'lucide-react';
 import { playLockSound } from '../utils/sounds';
 
 export default function LockerView() {
   const { lockerId } = useParams();
   const navigate = useNavigate();
-  const { lockers, isLockerUnlocked, lockLocker } = useLockers();
+  const { lockers, isLockerUnlocked, lockLocker, deleteLocker, renameLocker } = useLockers();
 
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +28,13 @@ export default function LockerView() {
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewFilename, setPreviewFilename] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+
+  // Rename states
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('Personal');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   // Find current locker details
   const currentLocker = lockers.find(l => l.id === lockerId);
@@ -135,6 +142,39 @@ export default function LockerView() {
     }
   };
 
+  const handleRenameLocker = async (e) => {
+    e.preventDefault();
+    setModalError('');
+    setIsSubmitting(true);
+
+    if (!editName) {
+      setModalError('Por favor introduce un nombre válido.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const res = await renameLocker(lockerId, editName, editCategory);
+    if (res.success) {
+      setShowRenameModal(false);
+      playLockSound(true); // Play tactile click upon successful rename!
+    } else {
+      setModalError(res.message);
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleDeleteLocker = async () => {
+    if (window.confirm(`¿Estás seguro de que deseas eliminar permanentemente este locker "${currentLocker?.name}" y TODOS sus archivos encriptados? Esta acción es irreversible.`)) {
+      const res = await deleteLocker(lockerId);
+      if (res.success) {
+        playLockSound(false); // Play solid lock drop sound
+        navigate('/dashboard');
+      } else {
+        alert(res.message);
+      }
+    }
+  };
+
   // PREVIEW AND DOWNLOAD IMPLEMENTATION (AXIOS BLOB & OBJECT URL)
   const handleAction = async (docId, filename, isDownload) => {
     try {
@@ -212,6 +252,29 @@ export default function LockerView() {
                 <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
                   Abierto
                 </span>
+
+                {/* Rename/Edit Button */}
+                <button
+                  onClick={() => {
+                    setEditName(currentLocker?.name || '');
+                    setEditCategory(currentLocker?.category || 'Personal');
+                    setModalError('');
+                    setShowRenameModal(true);
+                  }}
+                  className="p-1.5 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg text-slate-500 transition-all duration-200 ml-1"
+                  title="Editar Nombre del Locker"
+                >
+                  <Pencil size={13} />
+                </button>
+
+                {/* Delete Button */}
+                <button
+                  onClick={handleDeleteLocker}
+                  className="p-1.5 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg text-slate-500 transition-all duration-200"
+                  title="Eliminar Locker Permanentemente"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">Categoría: {currentLocker?.category} • Auto-cierre activo (5m)</p>
             </div>
@@ -412,6 +475,74 @@ export default function LockerView() {
             }
           }}
         />
+      )}
+
+      {/* RENAME/EDIT LOCKER MODAL */}
+      {showRenameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6.5">
+            <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2 mb-1">
+              <Pencil className="text-emerald-400" size={18} />
+              <span>Editar Archivador</span>
+            </h3>
+            <p className="text-xs text-slate-400 mb-5">Modifica los detalles del cofre seleccionado. Esta operación no altera tus archivos encriptados.</p>
+
+            {modalError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs mb-4">
+                {modalError}
+              </div>
+            )}
+
+            <form onSubmit={handleRenameLocker} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Nuevo Nombre</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="ej. Mis Impuestos Modificado"
+                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Nueva Categoría</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-all text-sm"
+                >
+                  <option value="Salud">Salud</option>
+                  <option value="Vehículos">Vehículos</option>
+                  <option value="Legal">Legal</option>
+                  <option value="Impuestos">Impuestos</option>
+                  <option value="Personal">Personal</option>
+                  <option value="Trabajo">Trabajo</option>
+                  <option value="Otros">Otros</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowRenameModal(false)}
+                  className="flex-1 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded-lg text-sm transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-medium rounded-lg text-sm transition-all flex items-center justify-center gap-1.5"
+                >
+                  {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+                  <span>Guardar Cambios</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
