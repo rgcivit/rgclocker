@@ -1,0 +1,94 @@
+import { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
+
+const AuthContext = createContext(null);
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('rgclocker_token'));
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function verifyToken() {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await api.get('/auth/me');
+        setUser(response.data.user);
+      } catch (error) {
+        console.error('Session validation failed:', error);
+        logout();
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    verifyToken();
+  }, [token]);
+
+  const login = async (username, password) => {
+    try {
+      const response = await api.post('/auth/login', { username, password });
+      const { token: userToken, user: userData } = response.data;
+      
+      localStorage.setItem('rgclocker_token', userToken);
+      setToken(userToken);
+      setUser(userData);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Login failed. Check your connection or credentials.'
+      };
+    }
+  };
+
+  const register = async (username, email, password) => {
+    try {
+      const response = await api.post('/auth/register', { username, email, password });
+      const { token: userToken, user: userData } = response.data;
+      
+      localStorage.setItem('rgclocker_token', userToken);
+      setToken(userToken);
+      setUser(userData);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Registration failed.'
+      };
+    }
+  };
+
+  const logout = () => {
+    // Clear auth token
+    localStorage.removeItem('rgclocker_token');
+    
+    // Clear all temporary locker tokens
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('rgclocker_token_')) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    setToken(null);
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

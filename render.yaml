@@ -1,0 +1,54 @@
+services:
+  # Backend API Server
+  - type: web
+    name: rgclocker-backend
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rgclocker-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: LOCKER_JWT_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false
+        placeholder: "Genera una clave de 64 caracteres hexadecimales (32 bytes)"
+      - key: GOOGLE_SERVICE_ACCOUNT_KEY_PATH
+        value: google-service-account.json
+      - key: GOOGLE_DRIVE_FOLDER_ID
+        sync: false
+        placeholder: "ID de carpeta de Google Drive compartida con el Service Account"
+
+  # Frontend Single Page App (Static Hosting)
+  - type: web
+    name: rgclocker-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    publishPath: frontend/dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        src: /*
+        dest: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: rgclocker-backend
+          property: host
+          path: /api
+
+databases:
+  - name: rgclocker-db
+    plan: free
