@@ -19,4 +19,7 @@ router.post('/:lockerId/unlock', lockerController.unlockLocker);
 // Delete a locker (Requires Level 2 unlocking for safety)
 router.delete('/:lockerId', lockerMiddleware, lockerController.deleteLocker);
 
+// Update/Rename a locker (Requires Level 2 unlocking for safety)
+router.put('/:lockerId', lockerMiddleware, lockerController.updateLocker);
+
 module.exports = router;

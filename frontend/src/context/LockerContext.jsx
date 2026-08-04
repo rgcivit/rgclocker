@@ -106,6 +106,23 @@ export const LockerProvider = ({ children }) => {
     }
   };
 
+  const renameLocker = async (lockerId, name, category) => {
+    try {
+      const response = await api.put(`/lockers/${lockerId}`, { name, category });
+      const updatedLocker = response.data.locker;
+      
+      // Update our local state
+      setLockers(prev => prev.map(l => l.id === lockerId ? { ...l, name: updatedLocker.name, category: updatedLocker.category } : l));
+      
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to rename locker.'
+      };
+    }
+  };
+
   const isLockerUnlocked = (lockerId) => {
     return !!unlockedLockers[lockerId];
   };
@@ -119,6 +136,7 @@ export const LockerProvider = ({ children }) => {
       unlockLocker,
       lockLocker,
       deleteLocker,
+      renameLocker,
       isLockerUnlocked,
       unlockedLockers
     }}>

@@ -161,9 +161,51 @@ async function deleteLocker(req, res) {
   }
 }
 
+/**
+ * Update/Rename a locker's name and/or category
+ */
+async function updateLocker(req, res) {
+  try {
+    const { lockerId } = req.params;
+    const { name, category } = req.body;
+
+    const locker = await Locker.findOne({
+      where: { id: lockerId, userId: req.user.id }
+    });
+
+    if (!locker) {
+      return res.status(404).json({ error: 'Not Found', message: 'Locker not found.' });
+    }
+
+    if (name) {
+      locker.name = name.trim();
+    }
+    if (category) {
+      locker.category = category.trim();
+    }
+
+    await locker.save();
+
+    res.json({
+      message: 'Locker updated successfully.',
+      locker: {
+        id: locker.id,
+        name: locker.name,
+        category: locker.category,
+        createdAt: locker.createdAt,
+        updatedAt: locker.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Update locker error:', error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+}
+
 module.exports = {
   listLockers,
   createLocker,
   unlockLocker,
-  deleteLocker
+  deleteLocker,
+  updateLocker
 };
