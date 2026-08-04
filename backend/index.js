@@ -1,10 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 const { sequelize } = require('./models');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -77,6 +78,18 @@ async function startServer() {
       console.log(`Master user '${masterUsername}' successfully seeded!`);
     } else {
       console.log(`Master user '${masterUsername}' already exists.`);
+    }
+
+    // Validate Google Drive configuration on startup if OAuth2 is used
+    try {
+      const { getDriveClient, validateOAuth2Credentials } = require('./services/googleDriveService');
+      const drive = getDriveClient();
+      if (drive) {
+        await validateOAuth2Credentials();
+      }
+    } catch (gdError) {
+      console.warn('\n[Warning] Google Drive initialization warning on startup:', gdError.message);
+      console.warn('Please check your Google Drive environment variables in backend/.env\n');
     }
 
     app.listen(PORT, () => {

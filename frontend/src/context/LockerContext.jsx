@@ -18,9 +18,9 @@ export const LockerProvider = ({ children }) => {
       return;
     }
     
-    // Scan localStorage for active locker tokens
+    // Scan sessionStorage for active locker tokens
     const activeLockers = {};
-    Object.keys(localStorage).forEach(key => {
+    Object.keys(sessionStorage).forEach(key => {
       if (key.startsWith('rgclocker_token_')) {
         const lockerId = key.replace('rgclocker_token_', '');
         activeLockers[lockerId] = true;
@@ -62,7 +62,7 @@ export const LockerProvider = ({ children }) => {
       const { lockerToken } = response.data;
       
       // Store token with locker specific key
-      localStorage.setItem(`rgclocker_token_${lockerId}`, lockerToken);
+      sessionStorage.setItem(`rgclocker_token_${lockerId}`, lockerToken);
       
       // Update local state
       setUnlockedLockers(prev => ({ ...prev, [lockerId]: true }));
@@ -77,7 +77,7 @@ export const LockerProvider = ({ children }) => {
   };
 
   const lockLocker = (lockerId) => {
-    localStorage.removeItem(`rgclocker_token_${lockerId}`);
+    sessionStorage.removeItem(`rgclocker_token_${lockerId}`);
     setUnlockedLockers(prev => {
       const next = { ...prev };
       delete next[lockerId];
@@ -89,7 +89,7 @@ export const LockerProvider = ({ children }) => {
     try {
       await api.delete(`/lockers/${lockerId}`);
       // Remove local token just in case
-      localStorage.removeItem(`rgclocker_token_${lockerId}`);
+      sessionStorage.removeItem(`rgclocker_token_${lockerId}`);
       
       setLockers(prev => prev.filter(l => l.id !== lockerId));
       setUnlockedLockers(prev => {

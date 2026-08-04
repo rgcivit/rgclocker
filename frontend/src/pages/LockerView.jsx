@@ -8,6 +8,7 @@ import {
   ArrowLeft, Lock, FileText, Upload, Trash2, Eye, Download, 
   Loader2, AlertTriangle, CloudUpload 
 } from 'lucide-react';
+import { playLockSound } from '../utils/sounds';
 
 export default function LockerView() {
   const { lockerId } = useParams();
@@ -34,6 +35,7 @@ export default function LockerView() {
   // Level 2 Security Auto-lock: Automatically locks this locker after 5 minutes of inactivity.
   // When locked, alert the user and redirect back to the dashboard.
   useAutoLock(lockerId, () => {
+    playLockSound(false); // Play solid latch thud sound on auto-locking
     alert(`[Seguridad] El archivador "${currentLocker?.name || 'Locker'}" ha sido bloqueado automáticamente por inactividad de 5 minutos.`);
     navigate('/dashboard');
   });
@@ -63,6 +65,7 @@ export default function LockerView() {
 
   const handleManualLock = () => {
     lockLocker(lockerId);
+    playLockSound(false); // Play solid latch thud sound on locking
     navigate('/dashboard');
   };
 

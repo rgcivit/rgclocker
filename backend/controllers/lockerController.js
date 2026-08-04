@@ -3,8 +3,9 @@ const jwt = require('jsonwebtoken');
 const { Locker, Document } = require('../models');
 const { deleteFile } = require('../services/googleDriveService');
 const dotenv = require('dotenv');
+const path = require('path');
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const LOCKER_JWT_SECRET = process.env.LOCKER_JWT_SECRET || 'dev_locker_jwt_secret_key_rgclocker_vault_2026';
 

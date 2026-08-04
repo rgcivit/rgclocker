@@ -1,7 +1,8 @@
 const crypto = require('crypto');
 const dotenv = require('dotenv');
+const path = require('path');
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // Standard for AES-GCM is 12 bytes

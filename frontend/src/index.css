@@ -41,3 +41,32 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #3f444e;
 }
+
+/* Custom interactive animation for chest-style lockers */
+@keyframes shake {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  15% { transform: rotate(-5deg) scale(1.02); }
+  30% { transform: rotate(4deg) scale(1.02); }
+  45% { transform: rotate(-3deg) scale(1.01); }
+  60% { transform: rotate(2deg) scale(1.01); }
+  75% { transform: rotate(-1deg) scale(1.005); }
+}
+
+.animate-shake {
+  transform-origin: bottom center;
+}
+
+.group:hover .group-hover\:animate-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Bouncing/hovering effect for opened chests */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-3px) scale(1.02); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+

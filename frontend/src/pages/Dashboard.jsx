@@ -6,6 +6,54 @@ import {
   FolderLock, FolderOpen, Plus, LogOut, Loader2, KeyRound, 
   Heart, Car, FileText, Landmark, User, Briefcase, HelpCircle, Trash2 
 } from 'lucide-react';
+import { playLockSound } from '../utils/sounds';
+
+function ChestIcon({ unlocked, size = 64, className = "" }) {
+  return (
+    <div className={`relative flex items-center justify-center transition-transform duration-300 ${className}`} style={{ width: size, height: size }}>
+      {unlocked ? (
+        /* Open Chest */
+        <svg viewBox="0 0 64 64" className="w-full h-full text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.35)] transition-all duration-300 transform hover:scale-105">
+          <path 
+            d="M8 22 L56 22 L48 6 L16 6 Z" 
+            fill="rgba(52, 211, 153, 0.12)" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinejoin="round"
+          />
+          <path d="M12 22 L24 4 L40 4 L52 22 Z" fill="url(#emeraldGlow)" opacity="0.3" className="animate-pulse" />
+          <path d="M10 26 L54 26 L49 54 L15 54 Z" fill="rgba(15, 23, 42, 0.75)" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M10 26 L17 26 L15 54 L11 40 Z" fill="rgba(52, 211, 153, 0.15)" stroke="currentColor" strokeWidth="1" />
+          <path d="M54 26 L47 26 L49 54 L53 40 Z" fill="rgba(52, 211, 153, 0.15)" stroke="currentColor" strokeWidth="1" />
+          <line x1="23" y1="26" x2="21" y2="54" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 2" />
+          <line x1="41" y1="26" x2="43" y2="54" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 2" />
+          <path d="M32 22 L32 32" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+          <circle cx="32" cy="35" r="2.5" fill="currentColor" />
+          
+          <defs>
+            <linearGradient id="emeraldGlow" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#34d399" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+        </svg>
+      ) : (
+        /* Closed Chest */
+        <svg viewBox="0 0 64 64" className="w-full h-full text-slate-500 transition-all duration-300 transform group-hover:text-slate-350">
+          <path d="M12 26 L52 26 L46 12 L18 12 Z" fill="rgba(100, 116, 139, 0.05)" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M12 26 L52 26 L48 50 L16 50 Z" fill="rgba(15, 23, 42, 0.75)" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M12 26 L19 26 L17 50 L13 38 Z" fill="rgba(100, 116, 139, 0.1)" stroke="currentColor" strokeWidth="1" />
+          <path d="M52 26 L45 26 L47 50 L51 38 Z" fill="rgba(100, 116, 139, 0.1)" stroke="currentColor" strokeWidth="1" />
+          <line x1="23" y1="12" x2="21" y2="50" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.4" />
+          <line x1="41" y1="12" x2="43" y2="50" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.4" />
+          <rect x="26" y="28" width="12" height="10" rx="1.5" fill="currentColor" />
+          <path d="M29 28 V24 a3 3 0 0 1 6 0 v4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+          <circle cx="32" cy="33" r="1.5" fill="#0f172a" />
+        </svg>
+      )}
+    </div>
+  );
+}
 
 const CATEGORIES = [
   { name: 'Salud', icon: Heart, color: 'from-rose-500/20 to-rose-600/5 text-rose-400 border-rose-500/10' },
@@ -60,6 +108,7 @@ export default function Dashboard() {
       setNewName('');
       setNewPin('');
       setShowCreateModal(false);
+      playLockSound(false); // Play lock sound for newly secured chest!
     } else {
       setModalError(res.message);
     }
@@ -81,6 +130,7 @@ export default function Dashboard() {
     if (res.success) {
       setPinInput('');
       setShowUnlockModal(false);
+      playLockSound(true); // Play unlock sound!
       navigate(`/locker/${activeLockerId}`);
     } else {
       setModalError(res.message);
@@ -92,7 +142,9 @@ export default function Dashboard() {
     e.stopPropagation(); // Avoid triggering open/unlock click
     if (window.confirm(`¿Estás seguro de que deseas eliminar permanentemente el locker "${name}" y TODOS sus archivos encriptados? Esta acción es irreversible.`)) {
       const res = await deleteLocker(lockerId);
-      if (!res.success) {
+      if (res.success) {
+        playLockSound(false); // Play solid lock drop sound when a locker is deleted/destroyed
+      } else {
         alert(res.message);
       }
     }
@@ -100,6 +152,7 @@ export default function Dashboard() {
 
   const onLockerClick = (locker) => {
     if (isLockerUnlocked(locker.id)) {
+      playLockSound(true); // Play quick metal slide/open click on entering already unlocked locker
       navigate(`/locker/${locker.id}`);
     } else {
       setActiveLockerId(locker.id);
@@ -216,50 +269,51 @@ export default function Dashboard() {
                 <div
                   key={locker.id}
                   onClick={() => onLockerClick(locker)}
-                  className={`group relative bg-slate-900/20 border rounded-2xl p-6 flex flex-col justify-between cursor-pointer hover:bg-slate-900/45 hover:border-slate-800 active:scale-[0.99] transition-all duration-300 ${
-                    unlocked ? 'border-emerald-500/20 shadow-lg shadow-emerald-500/[0.01]' : 'border-slate-900'
+                  className={`group relative bg-slate-950/40 border rounded-2xl p-6 flex flex-col items-center justify-between text-center cursor-pointer hover:bg-slate-900/20 hover:border-slate-800 active:scale-[0.98] transition-all duration-300 ${
+                    unlocked 
+                      ? 'border-emerald-500/15 shadow-xl shadow-emerald-950/5' 
+                      : 'border-slate-900 shadow-sm'
                   }`}
                 >
-                  {/* Top Header inside card */}
-                  <div className="flex items-start justify-between mb-4">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-semibold tracking-wider border uppercase ${meta.color}`}>
-                      <CatIcon size={12} />
+                  {/* Category Badge - Small & Minimalist top left */}
+                  <div className="absolute top-4 left-4">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wider border uppercase ${meta.color}`}>
+                      <CatIcon size={10} />
                       <span>{locker.category}</span>
                     </span>
-
-                    {/* Locker Status Icon */}
-                    <div className="flex items-center gap-1">
-                      {unlocked ? (
-                        <span className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-400" title="Desbloqueado (Activo)">
-                          <FolderOpen size={14} />
-                        </span>
-                      ) : (
-                        <span className="w-7 h-7 rounded-lg bg-slate-950 flex items-center justify-center border border-slate-850 text-slate-500" title="Bloqueado">
-                          <FolderLock size={14} />
-                        </span>
-                      )}
-                      
-                      {unlocked && (
-                        <button
-                          onClick={(e) => handleDeleteLocker(locker.id, locker.name, e)}
-                          className="w-7 h-7 rounded-lg bg-slate-950 flex items-center justify-center border border-slate-850 text-slate-500 hover:text-rose-400 hover:border-rose-500/20 hover:bg-rose-500/5 transition-all"
-                          title="Eliminar Locker"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Name and lock state banner */}
-                  <div className="mt-2">
-                    <h3 className="text-base font-semibold text-slate-200 truncate group-hover:text-emerald-400 transition-colors">
+                  {/* Delete button top right (only if unlocked) */}
+                  {unlocked && (
+                    <div className="absolute top-4 right-4 z-10">
+                      <button
+                        onClick={(e) => handleDeleteLocker(locker.id, locker.name, e)}
+                        className="w-6 h-6 rounded-md bg-slate-950/80 flex items-center justify-center border border-slate-900 text-slate-500 hover:text-rose-400 hover:border-rose-500/35 hover:bg-rose-500/10 transition-all duration-200"
+                        title="Eliminar Archivador"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Beautiful Chest Visual Centerpiece */}
+                  <div className="relative my-6 flex items-center justify-center w-24 h-24">
+                    {/* Glowing Aura for Unlocked Chest */}
+                    {unlocked && (
+                      <div className="absolute inset-0 bg-emerald-500/15 blur-xl rounded-full animate-pulse" />
+                    )}
+                    <ChestIcon unlocked={unlocked} size={72} className={unlocked ? "animate-float" : "group-hover:animate-shake"} />
+                  </div>
+
+                  {/* Locker Name & Info Footer */}
+                  <div className="w-full mt-2">
+                    <h3 className="text-sm font-semibold text-slate-200 truncate group-hover:text-emerald-400 transition-colors duration-250">
                       {locker.name}
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-[11px] text-slate-500 mt-1 font-medium tracking-wide">
                       {unlocked 
-                        ? 'Acceso concedido • Haz clic para entrar' 
-                        : 'Archivador encriptado • Requiere PIN'
+                        ? 'Acceso Concedido • Haz clic' 
+                        : 'Bóveda Protegida • Requiere PIN'
                       }
                     </p>
                   </div>
