@@ -134,13 +134,15 @@ async function register(req, res) {
     // Send email with the verification code to administrator
     await sendActivationEmail(normalizedEmail, normalizedUsername, activationCode);
 
+    const isProduction = process.env.NODE_ENV === 'production';
     const smtpHost = process.env.SMTP_HOST;
     const smtpUser = process.env.SMTP_USER;
     const smtpPass = process.env.SMTP_PASS;
     const isSmtpConfigured = !!(smtpHost && smtpUser && smtpPass);
+    const hideCode = isProduction || isSmtpConfigured;
 
     let message = 'Registro completado. El administrador ha recibido un correo para autorizar tu cuenta. Solicítale tu código de activación de 6 dígitos.';
-    if (!isSmtpConfigured) {
+    if (!hideCode) {
       message = `Registro completado. [DEV SIMULATION] El administrador rgcivitt@gmail.com debe autorizarte. Tu código de activación de 6 dígitos es: ${activationCode}`;
     }
 
@@ -191,13 +193,15 @@ async function login(req, res) {
       await user.save();
       await sendActivationEmail(user.email, user.username, newCode);
 
+      const isProduction = process.env.NODE_ENV === 'production';
       const smtpHost = process.env.SMTP_HOST;
       const smtpUser = process.env.SMTP_USER;
       const smtpPass = process.env.SMTP_PASS;
       const isSmtpConfigured = !!(smtpHost && smtpUser && smtpPass);
+      const hideCode = isProduction || isSmtpConfigured;
 
       let message = 'Tu cuenta no está activa o está pendiente de verificación. Se ha enviado un correo al administrador para autorizar tu cuenta. Solicítale tu código de activación de 6 dígitos.';
-      if (!isSmtpConfigured) {
+      if (!hideCode) {
         message = `Tu cuenta no está activa. [DEV SIMULATION] El administrador rgcivitt@gmail.com debe autorizarte. Tu código es: ${newCode}`;
       }
 
