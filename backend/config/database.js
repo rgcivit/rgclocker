@@ -17,6 +17,12 @@ const sequelize = new Sequelize(dbUrl || 'postgres://postgres:postgres@localhost
     timestamps: true,
     underscored: true, // Use snake_case for column names in the DB
   },
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 15000, // 15 seconds max connection attempt timeout
+    idle: 10000
+  },
   dialectOptions: (process.env.NODE_ENV === 'production' || (dbUrl && !dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1'))) ? {
     ssl: {
       require: true,
