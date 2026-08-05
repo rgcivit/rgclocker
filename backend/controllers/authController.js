@@ -20,7 +20,7 @@ async function sendActivationEmail(userEmail, username, code) {
   const smtpPass = process.env.SMTP_PASS;
   const smtpFrom = process.env.SMTP_FROM || 'noreply@rgclocker.local';
 
-  const adminEmail = 'rgcivit@gmail.com';
+  const adminEmail = 'rgcivitt@gmail.com';
 
   // 1. Log to server terminal for simulation (essential for local dev & free tier logs)
   console.log(`\n================== [SECURITY EMAIL SIMULATION] ==================`);
@@ -63,7 +63,7 @@ async function sendActivationEmail(userEmail, username, code) {
                 <td style="padding: 10px; font-family: monospace; font-size: 16px;">${userEmail}</td>
               </tr>
             </table>
-            <p>Para autorizar el acceso de este usuario, envíale el siguiente código de activación de 6 dígitos:</p>
+            <p>Para autorizar el acceso de este usuario, envíale el siguiente código de activación de 6 dígitos (expira en 30 minutos):</p>
             <div style="background-color: #020617; border: 1px solid #1e293b; padding: 15px; border-radius: 8px; font-size: 24px; font-weight: bold; letter-spacing: 4px; text-align: center; color: #34d399; margin: 25px 0; font-family: monospace;">
               ${code}
             </div>
@@ -116,19 +116,22 @@ async function register(req, res) {
     // Hash the password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Generate 6-digit verification code
+    // Generate 6-digit verification code with 30-minute expiration
     const activationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const activationCodeExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
-    // Create inactive user with activationCode
+    // Create inactive/unverified user with activationCode and expiration
     const newUser = await User.create({
       username: normalizedUsername,
       email: normalizedEmail,
       passwordHash,
-      isActive: false, // Must verify to activate
-      activationCode
+      isActive: false,       // Must be activated by verification code
+      isVerified: false,     // Must be verified by verification code
+      activationCode,
+      activationCodeExpires
     });
 
-    // Send email with the verification code
+    // Send email with the verification code to administrator
     await sendActivationEmail(normalizedEmail, normalizedUsername, activationCode);
 
     const smtpHost = process.env.SMTP_HOST;
@@ -136,9 +139,9 @@ async function register(req, res) {
     const smtpPass = process.env.SMTP_PASS;
     const isSmtpConfigured = !!(smtpHost && smtpUser && smtpPass);
 
-    let message = 'Registro completado. El administrador ha recibido un correo para autorizar tu cuenta. Solicítale tu código de activación.';
+    let message = 'Registro completado. El administrador ha recibido un correo para autorizar tu cuenta. Solicítale tu código de activación de 6 dígitos.';
     if (!isSmtpConfigured) {
-      message = `Registro completado. [DEV SIMULATION] El administrador rgcivit@gmail.com debe autorizarte. Tu código es: ${activationCode}`;
+      message = `Registro completado. [DEV SIMULATION] El administrador rgcivitt@gmail.com debe autorizarte. Tu código de activación de 6 dígitos es: ${activationCode}`;
     }
 
     res.status(201).json({
@@ -177,11 +180,13 @@ async function login(req, res) {
       return res.status(401).json({ error: 'Unauthorized', message: 'Invalid username or password.' });
     }
 
-    // Gatekeeper: Reject logins for inactive users
-    if (!user.isActive) {
-      // Re-generate and re-send code to ensure they can complete activation
+    // Gatekeeper: Reject logins for inactive/unverified users
+    if (!user.isVerified || !user.isActive) {
+      // Re-generate and re-send code (expires in 30 minutes) to ensure they can complete activation
       const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const newExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
       user.activationCode = newCode;
+      user.activationCodeExpires = newExpires;
       await user.save();
       await sendActivationEmail(user.email, user.username, newCode);
 
@@ -190,9 +195,9 @@ async function login(req, res) {
       const smtpPass = process.env.SMTP_PASS;
       const isSmtpConfigured = !!(smtpHost && smtpUser && smtpPass);
 
-      let message = 'Tu cuenta no está activa. Se ha enviado un correo al administrador para autorizar tu cuenta. Solicítale tu código de activación.';
+      let message = 'Tu cuenta no está activa o está pendiente de verificación. Se ha enviado un correo al administrador para autorizar tu cuenta. Solicítale tu código de activación de 6 dígitos.';
       if (!isSmtpConfigured) {
-        message = `Tu cuenta no está activa. [DEV SIMULATION] El administrador rgcivit@gmail.com debe autorizarte. Tu código es: ${newCode}`;
+        message = `Tu cuenta no está activa. [DEV SIMULATION] El administrador rgcivitt@gmail.com debe autorizarte. Tu código es: ${newCode}`;
       }
 
       return res.status(403).json({
@@ -243,17 +248,27 @@ async function activate(req, res) {
       return res.status(404).json({ error: 'Not Found', message: 'User not found.' });
     }
 
-    if (user.isActive) {
+    if (user.isVerified && user.isActive) {
       return res.status(400).json({ error: 'Bad Request', message: 'Account is already active.' });
+    }
+
+    // Validate expiration
+    if (user.activationCodeExpires && new Date() > new Date(user.activationCodeExpires)) {
+      return res.status(410).json({ 
+        error: 'Gone', 
+        message: 'El código de activación de 6 dígitos ha expirado (validez de 30 minutos). Intenta iniciar sesión de nuevo para generar un nuevo código para el administrador.' 
+      });
     }
 
     if (user.activationCode !== code.trim()) {
       return res.status(401).json({ error: 'Unauthorized', message: 'Código de activación incorrecto.' });
     }
 
-    // Activate user
+    // Activate/verify user
     user.isActive = true;
+    user.isVerified = true;
     user.activationCode = null;
+    user.activationCodeExpires = null;
     await user.save();
 
     // Generate JWT Token (Expires in 2 hours)

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft, Mail } from 'lucide-react';
 
 export default function Login() {
   const { login, register, activateAccount } = useAuth();
@@ -9,6 +9,7 @@ export default function Login() {
   
   // Form states
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
@@ -19,15 +20,23 @@ export default function Login() {
 
   // Feedback states
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     setIsSubmitting(true);
 
     if (!username || !password) {
       setError('Por favor, completa todos los campos requeridos.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (isRegistering && !email) {
+      setError('Por favor, ingresa tu correo electrónico.');
       setIsSubmitting(false);
       return;
     }
@@ -40,8 +49,6 @@ export default function Login() {
 
     let result;
     if (isRegistering) {
-      // Auto-generate email based on username to fulfill backend database constraints
-      const email = `${username}@rgclocker.local`;
       result = await register(username, email, password);
     } else {
       result = await login(username, password);
@@ -50,8 +57,8 @@ export default function Login() {
     // Capture activation requirement from backend (Level 3 Gatekeeper)
     if (result.requireActivation) {
       setActiveUsername(result.username);
+      setSuccessMsg(result.message);
       setShowActivation(true);
-      setError('');
       setIsSubmitting(false);
       return;
     }
@@ -65,10 +72,11 @@ export default function Login() {
   const handleActivateSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     setIsSubmitting(true);
 
     if (!activationCode) {
-      setError('Por favor, introduce tu código de verificación de 6 dígitos.');
+      setError('Por favor, introduce tu código de activación de 6 dígitos.');
       setIsSubmitting(false);
       return;
     }
@@ -87,6 +95,7 @@ export default function Login() {
     setIsRegistering(false);
     setActivationCode('');
     setError('');
+    setSuccessMsg('');
   };
 
   return (
@@ -116,13 +125,20 @@ export default function Login() {
                 <span>Volver al Login</span>
               </button>
 
-              <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2 mb-2">
+              <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2 mb-2 font-mono uppercase tracking-wide">
                 <KeyRound className="text-emerald-400" size={18} />
                 <span>Activa tu Bóveda</span>
               </h2>
+              
               <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-                Hemos enviado un código de activación de 6 dígitos a la dirección de correo registrada. Revisa tu buzón (e historial de logs) e introdúcelo debajo.
+                El administrador ha recibido una notificación para autorizar tu cuenta. Una vez que te proporcione el código de activación de 6 dígitos, introdúcelo debajo.
               </p>
+
+              {successMsg && (
+                <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs mb-5">
+                  <span>{successMsg}</span>
+                </div>
+              )}
 
               {error && (
                 <div className="flex items-start gap-2.5 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs mb-5">
@@ -191,6 +207,27 @@ export default function Login() {
                   </div>
                 </div>
 
+                {isRegistering && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Correo Electrónico
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                        <Mail size={18} />
+                      </span>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="ej. correo@dominio.com"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-800 text-slate-200 rounded-lg placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all text-sm animate-fade-in"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
                     {isRegistering ? 'Contraseña nueva' : 'Contraseña de acceso'}
@@ -258,8 +295,10 @@ export default function Login() {
                   onClick={() => {
                     setIsRegistering(!isRegistering);
                     setError('');
+                    setSuccessMsg('');
                     setPassword('');
                     setConfirmPassword('');
+                    setEmail('');
                   }}
                   className="text-xs text-slate-400 hover:text-emerald-400 transition-colors underline underline-offset-4 font-semibold"
                 >

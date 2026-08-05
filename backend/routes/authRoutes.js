@@ -7,6 +7,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/activate', authController.activate);
+router.post('/verify-code', authController.activate);
 
 // Private routes
 router.get('/me', authMiddleware, authController.getProfile);

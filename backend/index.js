@@ -94,7 +94,8 @@ async function startServer() {
         username: masterUsername,
         email: masterEmail,
         passwordHash,
-        isActive: true // Master user is pre-activated!
+        isActive: true, // Master user is pre-activated!
+        isVerified: true
       });
       console.log(`Master user '${masterUsername}' successfully seeded!`);
     } else {

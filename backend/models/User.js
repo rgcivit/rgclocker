@@ -34,10 +34,20 @@ const User = sequelize.define('User', {
     defaultValue: false,
     field: 'is_active'
   },
+  isVerified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_verified'
+  },
   activationCode: {
     type: DataTypes.STRING,
     allowNull: true,
     field: 'activation_code'
+  },
+  activationCodeExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'activation_code_expires'
   }
 }, {
   tableName: 'users'

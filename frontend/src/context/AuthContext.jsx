@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }) => {
 
   const activateAccount = async (username, code) => {
     try {
-      const response = await api.post('/auth/activate', { username, code });
+      const response = await api.post('/auth/verify-code', { username, code });
       const { token: userToken, user: userData } = response.data;
       
       sessionStorage.setItem('rgclocker_token', userToken);
