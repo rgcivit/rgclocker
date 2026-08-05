@@ -100,6 +100,14 @@ async function startServer() {
       console.log(`Master user '${masterUsername}' successfully seeded!`);
     } else {
       console.log(`Master user '${masterUsername}' already exists.`);
+      // Defensive check: ensure the master user is always active and verified on startup
+      if (!existingMaster.isActive || !existingMaster.isVerified) {
+        console.log(`Forcing master user '${masterUsername}' to be Active and Verified...`);
+        existingMaster.isActive = true;
+        existingMaster.isVerified = true;
+        await existingMaster.save();
+        console.log(`Master user '${masterUsername}' is now Active and Verified.`);
+      }
     }
 
     // Validate Google Drive configuration on startup if OAuth2 is used
