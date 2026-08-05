@@ -330,7 +330,7 @@ async function listUsers(req, res) {
     }
 
     const users = await User.findAll({
-      attributes: ['id', 'username', 'email', 'isActive', 'isVerified', 'createdAt'],
+      attributes: ['id', 'username', 'email', 'isActive', 'isVerified', 'activationCode', 'createdAt'],
       order: [['createdAt', 'DESC']]
     });
 

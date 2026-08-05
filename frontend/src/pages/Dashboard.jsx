@@ -367,9 +367,16 @@ export default function Dashboard() {
                                 Activo
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/10">
-                                Pendiente
-                              </span>
+                              <div className="flex flex-col gap-1">
+                                <span className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/10 w-max">
+                                  Pendiente
+                                </span>
+                                {usr.activationCode && (
+                                  <span className="text-[10px] text-slate-500 font-mono">
+                                    Código: <strong className="text-emerald-400 select-all">{usr.activationCode}</strong>
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </td>
                           <td className="px-6 py-4 text-center">
