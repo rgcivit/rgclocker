@@ -131,8 +131,8 @@ async function register(req, res) {
       activationCodeExpires
     });
 
-    // Send email with the verification code to administrator
-    await sendActivationEmail(normalizedEmail, normalizedUsername, activationCode);
+    // Send email with the verification code to administrator (Asynchronously to prevent SMTP blocking)
+    sendActivationEmail(normalizedEmail, normalizedUsername, activationCode);
 
     const isProduction = process.env.NODE_ENV === 'production';
     const smtpHost = process.env.SMTP_HOST;
@@ -191,7 +191,8 @@ async function login(req, res) {
       user.activationCode = newCode;
       user.activationCodeExpires = newExpires;
       await user.save();
-      await sendActivationEmail(user.email, user.username, newCode);
+      // Send email with the verification code to administrator (Asynchronously to prevent SMTP blocking)
+      sendActivationEmail(user.email, user.username, newCode);
 
       const isProduction = process.env.NODE_ENV === 'production';
       const smtpHost = process.env.SMTP_HOST;
