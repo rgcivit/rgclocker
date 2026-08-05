@@ -29,42 +29,48 @@ export default function Login() {
     setSuccessMsg('');
     setIsSubmitting(true);
 
-    if (!username || !password) {
-      setError('Por favor, completa todos los campos requeridos.');
-      setIsSubmitting(false);
-      return;
-    }
+    try {
+      if (!username || !password) {
+        setError('Por favor, completa todos los campos requeridos.');
+        setIsSubmitting(false);
+        return;
+      }
 
-    if (isRegistering && !email) {
-      setError('Por favor, ingresa tu correo electrónico.');
-      setIsSubmitting(false);
-      return;
-    }
+      if (isRegistering && !email) {
+        setError('Por favor, ingresa tu correo electrónico.');
+        setIsSubmitting(false);
+        return;
+      }
 
-    if (isRegistering && password !== confirmPassword) {
-      setError('Las contraseñas no coinciden. Por favor, vuelve a escribir la contraseña.');
-      setIsSubmitting(false);
-      return;
-    }
+      if (isRegistering && password !== confirmPassword) {
+        setError('Las contraseñas no coinciden. Por favor, vuelve a escribir la contraseña.');
+        setIsSubmitting(false);
+        return;
+      }
 
-    let result;
-    if (isRegistering) {
-      result = await register(username, email, password);
-    } else {
-      result = await login(username, password);
-    }
+      let result;
+      if (isRegistering) {
+        result = await register(username, email, password);
+      } else {
+        result = await login(username, password);
+      }
 
-    // Capture activation requirement from backend (Level 3 Gatekeeper)
-    if (result.requireActivation) {
-      setActiveUsername(result.username);
-      setSuccessMsg(result.message);
-      setShowActivation(true);
-      setIsSubmitting(false);
-      return;
-    }
+      // Capture activation requirement from backend (Level 3 Gatekeeper)
+      if (result.requireActivation) {
+        setActiveUsername(result.username);
+        setSuccessMsg(result.message);
+        setShowActivation(true);
+        setIsSubmitting(false);
+        return;
+      }
 
-    if (!result.success) {
-      setError(result.message);
+      if (!result.success) {
+        setError(result.message);
+        setIsSubmitting(false);
+      }
+    } catch (err) {
+      console.error('Login submit error:', err);
+      setError('No se pudo conectar con el servidor de la Bóveda. Inténtalo de nuevo.');
       setIsSubmitting(false);
     }
   };
