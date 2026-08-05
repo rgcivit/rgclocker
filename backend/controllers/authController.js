@@ -118,8 +118,18 @@ async function register(req, res) {
     // Send email with the verification code
     await sendActivationEmail(normalizedEmail, normalizedUsername, activationCode);
 
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const isSmtpConfigured = !!(smtpHost && smtpUser && smtpPass);
+
+    let message = 'User registered successfully. An activation code has been sent to your email.';
+    if (!isSmtpConfigured) {
+      message = `User registered successfully. [DEV SIMULATION] Tu código de activación de 6 dígitos es: ${activationCode}`;
+    }
+
     res.status(201).json({
-      message: 'User registered successfully. An activation code has been sent to your email.',
+      message,
       requireActivation: true,
       username: newUser.username
     });
@@ -162,9 +172,19 @@ async function login(req, res) {
       await user.save();
       await sendActivationEmail(user.email, user.username, newCode);
 
+      const smtpHost = process.env.SMTP_HOST;
+      const smtpUser = process.env.SMTP_USER;
+      const smtpPass = process.env.SMTP_PASS;
+      const isSmtpConfigured = !!(smtpHost && smtpUser && smtpPass);
+
+      let message = 'Tu cuenta no está activa. Se ha enviado un nuevo código de activación de 6 dígitos a tu correo.';
+      if (!isSmtpConfigured) {
+        message = `Tu cuenta no está activa. [DEV SIMULATION] Al no haber SMTP configurado, tu código de activación de 6 dígitos es: ${newCode}`;
+      }
+
       return res.status(403).json({
         error: 'Forbidden',
-        message: 'Tu cuenta no está activa. Se ha enviado un nuevo código de activación de 6 dígitos a tu correo.',
+        message,
         requireActivation: true,
         username: user.username
       });
