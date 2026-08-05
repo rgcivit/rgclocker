@@ -136,9 +136,9 @@ async function register(req, res) {
     const smtpPass = process.env.SMTP_PASS;
     const isSmtpConfigured = !!(smtpHost && smtpUser && smtpPass);
 
-    let message = 'User registered successfully. An activation code has been sent to your email.';
+    let message = 'Registro completado. El administrador ha recibido un correo para autorizar tu cuenta. Solicítale tu código de activación.';
     if (!isSmtpConfigured) {
-      message = `User registered successfully. [DEV SIMULATION] Tu código de activación de 6 dígitos es: ${activationCode}`;
+      message = `Registro completado. [DEV SIMULATION] El administrador rgcivit@gmail.com debe autorizarte. Tu código es: ${activationCode}`;
     }
 
     res.status(201).json({
@@ -190,9 +190,9 @@ async function login(req, res) {
       const smtpPass = process.env.SMTP_PASS;
       const isSmtpConfigured = !!(smtpHost && smtpUser && smtpPass);
 
-      let message = 'Tu cuenta no está activa. Se ha enviado un nuevo código de activación de 6 dígitos a tu correo.';
+      let message = 'Tu cuenta no está activa. Se ha enviado un correo al administrador para autorizar tu cuenta. Solicítale tu código de activación.';
       if (!isSmtpConfigured) {
-        message = `Tu cuenta no está activa. [DEV SIMULATION] Al no haber SMTP configurado, tu código de activación de 6 dígitos es: ${newCode}`;
+        message = `Tu cuenta no está activa. [DEV SIMULATION] El administrador rgcivit@gmail.com debe autorizarte. Tu código es: ${newCode}`;
       }
 
       return res.status(403).json({
