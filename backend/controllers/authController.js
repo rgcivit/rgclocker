@@ -319,9 +319,65 @@ async function getProfile(req, res) {
   }
 }
 
+/**
+ * List all registered users (Master 'locker' only)
+ */
+async function listUsers(req, res) {
+  try {
+    // req.user is attached by authMiddleware. Check if the logged-in user is the master 'locker'
+    if (req.user.username !== 'locker') {
+      return res.status(403).json({ error: 'Forbidden', message: 'Access denied. Master user privileges required.' });
+    }
+
+    const users = await User.findAll({
+      attributes: ['id', 'username', 'email', 'isActive', 'isVerified', 'createdAt'],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({ users });
+  } catch (error) {
+    console.error('List users error:', error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+}
+
+/**
+ * Delete a specific user by ID (Master 'locker' only)
+ */
+async function deleteUser(req, res) {
+  try {
+    // req.user is attached by authMiddleware. Check if the logged-in user is the master 'locker'
+    if (req.user.username !== 'locker') {
+      return res.status(403).json({ error: 'Forbidden', message: 'Access denied. Master user privileges required.' });
+    }
+
+    const { id } = req.params;
+
+    // Prevent deleting the master 'locker' user itself
+    const userToDelete = await User.findByPk(id);
+    if (!userToDelete) {
+      return res.status(404).json({ error: 'Not Found', message: 'User not found.' });
+    }
+
+    if (userToDelete.username === 'locker') {
+      return res.status(400).json({ error: 'Bad Request', message: 'The master user cannot be deleted.' });
+    }
+
+    // Delete user (cascade automatically deletes lockers & documents because of association rules)
+    await userToDelete.destroy();
+
+    res.json({ message: `User '${userToDelete.username}' successfully deleted.` });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+}
+
 module.exports = {
   register,
   login,
   activate,
-  getProfile
+  getProfile,
+  listUsers,
+  deleteUser
 };

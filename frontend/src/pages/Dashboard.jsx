@@ -4,9 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { 
   FolderLock, FolderOpen, Plus, LogOut, Loader2, KeyRound, 
-  Heart, Car, FileText, Landmark, User, Briefcase, HelpCircle, Trash2, Pencil 
+  Heart, Car, FileText, Landmark, User, Briefcase, HelpCircle, Trash2, Pencil, Users 
 } from 'lucide-react';
 import { playLockSound } from '../utils/sounds';
+import api from '../services/api';
 
 function ChestIcon({ unlocked, size = 64, className = "" }) {
   return (
@@ -70,9 +71,52 @@ export default function Dashboard() {
   const { lockers, loading, createLocker, unlockLocker, isLockerUnlocked, deleteLocker, renameLocker } = useLockers();
   const navigate = useNavigate();
 
+  // Admin Panel states (Master user 'locker' only)
+  const [usersList, setUsersList] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+
   // Active filters and modal states
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const handleFetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await api.get('auth/users');
+      setUsersList(response.data.users || []);
+    } catch (err) {
+      console.error('Failed to load users:', err);
+      alert('Error al cargar la lista de usuarios.');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleToggleAdminPanel = () => {
+    const nextState = !showAdminPanel;
+    setShowAdminPanel(nextState);
+    if (nextState) {
+      handleFetchUsers();
+    }
+  };
+
+  const handleDeleteUser = async (userId, targetUsername) => {
+    if (window.confirm(`¿Estás seguro de que deseas eliminar permanentemente al usuario "${targetUsername}"? Se borrarán todos sus archivadores y archivos encriptados de forma irreversible.`)) {
+      setLoadingUsers(true);
+      try {
+        await api.delete(`auth/users/${userId}`);
+        // Refresh list
+        await handleFetchUsers();
+        playLockSound(false); // Play solid lock drop sound on delete
+      } catch (err) {
+        console.error('Failed to delete user:', err);
+        alert(err.response?.data?.message || 'Error al intentar eliminar el usuario.');
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+  };
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [activeLockerId, setActiveLockerId] = useState(null);
@@ -219,152 +263,275 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-sm border border-slate-800 hover:border-slate-700 hover:text-white transition-all"
-          >
-            <LogOut size={15} />
-            <span>Cerrar Sesión</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {user?.username === 'locker' && (
+              <button
+                onClick={handleToggleAdminPanel}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border font-semibold transition-all ${
+                  showAdminPanel
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <Users size={15} />
+                <span>{showAdminPanel ? 'Ver Lockers' : 'Administrar Usuarios'}</span>
+              </button>
+            )}
+
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-sm border border-slate-800 hover:border-slate-700 hover:text-white transition-all"
+            >
+              <LogOut size={15} />
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
-        
-        {/* Banner with Action */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight text-slate-200">Mis Archivadores (Lockers)</h2>
-            <p className="text-sm text-slate-400 mt-1">Crea archivadores independientes protegidos con claves PIN de doble factor.</p>
-          </div>
-          <button
-            onClick={() => {
-              setModalError('');
-              setShowCreateModal(true);
-            }}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-medium rounded-lg text-sm shadow-md shadow-emerald-500/5 hover:shadow-emerald-500/15 transition-all"
-          >
-            <Plus size={16} />
-            <span>Nuevo Locker</span>
-          </button>
-        </div>
-
-        {/* Category Filters */}
-        <div className="flex flex-wrap items-center gap-2 mb-8 border-b border-slate-900 pb-5">
-          <button
-            onClick={() => setSelectedCategory('Todas')}
-            className={`px-4 py-1.5 rounded-full text-xs font-medium border transition-all ${
-              selectedCategory === 'Todas'
-                ? 'bg-slate-800 border-slate-700 text-slate-100'
-                : 'bg-transparent border-slate-900 text-slate-500 hover:text-slate-300 hover:border-slate-800'
-            }`}
-          >
-            Todas ({lockers.length})
-          </button>
-          {CATEGORIES.map(cat => {
-            const count = lockers.filter(l => l.category.toLowerCase() === cat.name.toLowerCase()).length;
-            return (
+        {showAdminPanel ? (
+          /* ADMIN USER MANAGEMENT PANEL */
+          <div className="animate-fade-in">
+            {/* Admin Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-slate-200 flex items-center gap-2">
+                  <Users className="text-emerald-400" size={22} />
+                  <span>Administración de Usuarios</span>
+                </h2>
+                <p className="text-sm text-slate-400 mt-1">
+                  Listado de usuarios registrados en el sistema. Puedes eliminar cuentas de prueba para liberar espacio y accesos.
+                </p>
+              </div>
               <button
-                key={cat.name}
-                onClick={() => setSelectedCategory(cat.name)}
+                onClick={handleFetchUsers}
+                disabled={loadingUsers}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-sm border border-slate-800 hover:border-slate-700 transition-all disabled:opacity-50"
+              >
+                {loadingUsers ? <Loader2 className="animate-spin text-emerald-400" size={16} /> : null}
+                <span>Actualizar Lista</span>
+              </button>
+            </div>
+
+            {/* Admin Table / Grid */}
+            {loadingUsers && usersList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+                <Loader2 className="animate-spin text-emerald-400 mb-3" size={32} />
+                <p className="text-sm">Consultando base de datos...</p>
+              </div>
+            ) : usersList.length === 0 ? (
+              <div className="text-center py-16 border border-dashed border-slate-900 rounded-2xl bg-slate-950/40 px-6">
+                <User size={44} className="mx-auto text-slate-700 mb-3" />
+                <h3 className="text-slate-300 font-medium text-base">No hay otros usuarios registrados</h3>
+                <p className="text-xs text-slate-500 mt-1">Todos los usuarios del sistema han sido removidos.</p>
+              </div>
+            ) : (
+              <div className="bg-slate-900/30 border border-slate-850 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left text-sm text-slate-300">
+                    <thead className="bg-slate-950/80 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-900">
+                      <tr>
+                        <th className="px-6 py-4">Usuario</th>
+                        <th className="px-6 py-4">Email</th>
+                        <th className="px-6 py-4">Fecha de Registro</th>
+                        <th className="px-6 py-4">Estado</th>
+                        <th className="px-6 py-4 text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-900">
+                      {usersList.map((usr) => (
+                        <tr key={usr.id} className="hover:bg-slate-900/10 transition-colors">
+                          <td className="px-6 py-4 font-medium text-slate-200 font-mono">
+                            {usr.username}
+                            {usr.username === 'locker' && (
+                              <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">
+                                Maestro
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-slate-400">{usr.email}</td>
+                          <td className="px-6 py-4 text-xs text-slate-400">
+                            {new Date(usr.createdAt).toLocaleDateString('es-ES', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                          <td className="px-6 py-4">
+                            {usr.isActive ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/10">
+                                Activo
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/10">
+                                Pendiente
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {usr.username !== 'locker' ? (
+                              <button
+                                onClick={() => handleDeleteUser(usr.id, usr.username)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/40 text-rose-400 rounded-lg text-xs font-semibold transition-all"
+                                title="Eliminar este usuario de forma permanente"
+                              >
+                                <Trash2 size={13} />
+                                <span>Eliminar</span>
+                              </button>
+                            ) : (
+                              <span className="text-xs text-slate-600 italic">Inmutable</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* STANDARD LOCKERS GRID AREA */
+          <>
+            {/* Banner with Action */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-slate-200">Mis Archivadores (Lockers)</h2>
+                <p className="text-sm text-slate-400 mt-1">Crea archivadores independientes protegidos con claves PIN de doble factor.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setModalError('');
+                  setShowCreateModal(true);
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-medium rounded-lg text-sm shadow-md shadow-emerald-500/5 hover:shadow-emerald-500/15 transition-all"
+              >
+                <Plus size={16} />
+                <span>Nuevo Locker</span>
+              </button>
+            </div>
+
+            {/* Category Filters */}
+            <div className="flex flex-wrap items-center gap-2 mb-8 border-b border-slate-900 pb-5">
+              <button
+                onClick={() => setSelectedCategory('Todas')}
                 className={`px-4 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                  selectedCategory === cat.name
+                  selectedCategory === 'Todas'
                     ? 'bg-slate-800 border-slate-700 text-slate-100'
                     : 'bg-transparent border-slate-900 text-slate-500 hover:text-slate-300 hover:border-slate-800'
                 }`}
               >
-                {cat.name} ({count})
+                Todas ({lockers.length})
               </button>
-            );
-          })}
-        </div>
+              {CATEGORIES.map(cat => {
+                const count = lockers.filter(l => l.category.toLowerCase() === cat.name.toLowerCase()).length;
+                return (
+                  <button
+                    key={cat.name}
+                    onClick={() => setSelectedCategory(cat.name)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      selectedCategory === cat.name
+                        ? 'bg-slate-800 border-slate-700 text-slate-100'
+                        : 'bg-transparent border-slate-900 text-slate-500 hover:text-slate-300 hover:border-slate-800'
+                    }`}
+                  >
+                    {cat.name} ({count})
+                  </button>
+                );
+              })}
+            </div>
 
-        {/* Locker Grid */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-            <Loader2 className="animate-spin text-emerald-400 mb-3" size={32} />
-            <p className="text-sm">Abriendo registros de bóveda...</p>
-          </div>
-        ) : filteredLockers.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-slate-900 rounded-2xl bg-slate-950/40 px-6">
-            <FolderLock size={44} className="mx-auto text-slate-700 mb-3" />
-            <h3 className="text-slate-300 font-medium text-base">No hay lockers en esta categoría</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Comienza creando un archivador personal seguro con un PIN dedicado para guardar tus documentos en la nube.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredLockers.map(locker => {
-              const unlocked = isLockerUnlocked(locker.id);
-              const meta = getCategoryMeta(locker.category);
-              const CatIcon = meta.icon;
+            {/* Locker Grid */}
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+                <Loader2 className="animate-spin text-emerald-400 mb-3" size={32} />
+                <p className="text-sm">Abriendo registros de bóveda...</p>
+              </div>
+            ) : filteredLockers.length === 0 ? (
+              <div className="text-center py-16 border border-dashed border-slate-900 rounded-2xl bg-slate-950/40 px-6">
+                <FolderLock size={44} className="mx-auto text-slate-700 mb-3" />
+                <h3 className="text-slate-300 font-medium text-base">No hay lockers en esta categoría</h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Comienza creando un archivador personal seguro con un PIN dedicado para guardar tus documentos en la nube.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredLockers.map(locker => {
+                  const unlocked = isLockerUnlocked(locker.id);
+                  const meta = getCategoryMeta(locker.category);
+                  const CatIcon = meta.icon;
 
-              return (
-                <div
-                  key={locker.id}
-                  onClick={() => onLockerClick(locker)}
-                  className={`group relative bg-slate-950/40 border rounded-2xl p-6 flex flex-col items-center justify-between text-center cursor-pointer hover:bg-slate-900/20 hover:border-slate-800 active:scale-[0.98] transition-all duration-300 ${
-                    unlocked 
-                      ? 'border-emerald-500/15 shadow-xl shadow-emerald-950/5' 
-                      : 'border-slate-900 shadow-sm'
-                  }`}
-                >
-                  {/* Category Badge - Small & Minimalist top left */}
-                  <div className="absolute top-4 left-4">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wider border uppercase ${meta.color}`}>
-                      <CatIcon size={10} />
-                      <span>{locker.category}</span>
-                    </span>
-                  </div>
+                  return (
+                    <div
+                      key={locker.id}
+                      onClick={() => onLockerClick(locker)}
+                      className={`group relative bg-slate-950/40 border rounded-2xl p-6 flex flex-col items-center justify-between text-center cursor-pointer hover:bg-slate-900/20 hover:border-slate-800 active:scale-[0.98] transition-all duration-300 ${
+                        unlocked 
+                          ? 'border-emerald-500/15 shadow-xl shadow-emerald-950/5' 
+                          : 'border-slate-900 shadow-sm'
+                      }`}
+                    >
+                      {/* Category Badge - Small & Minimalist top left */}
+                      <div className="absolute top-4 left-4">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wider border uppercase ${meta.color}`}>
+                          <CatIcon size={10} />
+                          <span>{locker.category}</span>
+                        </span>
+                      </div>
 
-                  {/* Action buttons top right (only if unlocked) */}
-                  {unlocked && (
-                    <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5">
-                      {/* Edit Button */}
-                      <button
-                        onClick={(e) => onRenameClick(locker, e)}
-                        className="w-6 h-6 rounded-md bg-slate-950/80 flex items-center justify-center border border-slate-900 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/35 hover:bg-emerald-500/10 transition-all duration-200"
-                        title="Editar Archivador"
-                      >
-                        <Pencil size={11} />
-                      </button>
+                      {/* Action buttons top right (only if unlocked) */}
+                      {unlocked && (
+                        <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5">
+                          {/* Edit Button */}
+                          <button
+                            onClick={(e) => onRenameClick(locker, e)}
+                            className="w-6 h-6 rounded-md bg-slate-950/80 flex items-center justify-center border border-slate-900 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/35 hover:bg-emerald-500/10 transition-all duration-200"
+                            title="Editar Archivador"
+                          >
+                            <Pencil size={11} />
+                          </button>
 
-                      {/* Delete Button */}
-                      <button
-                        onClick={(e) => handleDeleteLocker(locker.id, locker.name, e)}
-                        className="w-6 h-6 rounded-md bg-slate-950/80 flex items-center justify-center border border-slate-900 text-slate-400 hover:text-rose-400 hover:border-rose-500/35 hover:bg-rose-500/10 transition-all duration-200"
-                        title="Eliminar Archivador"
-                      >
-                        <Trash2 size={11} />
-                      </button>
+                          {/* Delete Button */}
+                          <button
+                            onClick={(e) => handleDeleteLocker(locker.id, locker.name, e)}
+                            className="w-6 h-6 rounded-md bg-slate-950/80 flex items-center justify-center border border-slate-900 text-slate-400 hover:text-rose-400 hover:border-rose-500/35 hover:bg-rose-500/10 transition-all duration-200"
+                            title="Eliminar Archivador"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Beautiful Chest Visual Centerpiece */}
+                      <div className="relative my-6 flex items-center justify-center w-24 h-24">
+                        {/* Glowing Aura for Unlocked Chest */}
+                        {unlocked && (
+                          <div className="absolute inset-0 bg-emerald-500/15 blur-xl rounded-full animate-pulse" />
+                        )}
+                        <ChestIcon unlocked={unlocked} size={72} className={unlocked ? "animate-float" : "group-hover:animate-shake"} />
+                      </div>
+
+                      {/* Locker Name & Info Footer */}
+                      <div className="w-full mt-2">
+                        <h3 className="text-sm font-semibold text-slate-200 truncate group-hover:text-emerald-400 transition-colors duration-250">
+                          {locker.name}
+                        </h3>
+                        <p className="text-[11px] text-slate-500 mt-1 font-medium tracking-wide">
+                          {unlocked 
+                            ? 'Acceso Concedido • Haz clic' 
+                            : 'Bóveda Protegida • Requiere PIN'
+                          }
+                        </p>
+                      </div>
                     </div>
-                  )}
-
-                  {/* Beautiful Chest Visual Centerpiece */}
-                  <div className="relative my-6 flex items-center justify-center w-24 h-24">
-                    {/* Glowing Aura for Unlocked Chest */}
-                    {unlocked && (
-                      <div className="absolute inset-0 bg-emerald-500/15 blur-xl rounded-full animate-pulse" />
-                    )}
-                    <ChestIcon unlocked={unlocked} size={72} className={unlocked ? "animate-float" : "group-hover:animate-shake"} />
-                  </div>
-
-                  {/* Locker Name & Info Footer */}
-                  <div className="w-full mt-2">
-                    <h3 className="text-sm font-semibold text-slate-200 truncate group-hover:text-emerald-400 transition-colors duration-250">
-                      {locker.name}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mt-1 font-medium tracking-wide">
-                      {unlocked 
-                        ? 'Acceso Concedido • Haz clic' 
-                        : 'Bóveda Protegida • Requiere PIN'
-                      }
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </main>
 
