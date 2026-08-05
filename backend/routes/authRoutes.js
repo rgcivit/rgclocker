@@ -11,5 +11,7 @@ router.post('/verify-code', authController.activate);
 
 // Private routes
 router.get('/me', authMiddleware, authController.getProfile);
+router.get('/users', authMiddleware, authController.listUsers);
+router.delete('/users/:id', authMiddleware, authController.deleteUser);
 
 module.exports = router;
