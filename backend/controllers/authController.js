@@ -180,8 +180,9 @@ async function login(req, res) {
       return res.status(401).json({ error: 'Unauthorized', message: 'Invalid username or password.' });
     }
 
-    // Gatekeeper: Reject logins for inactive/unverified users
-    if (!user.isVerified || !user.isActive) {
+    // Gatekeeper: Reject logins ONLY for inactive users (newly registered / pending approval)
+    // Existing active users (isActive === true) bypass this completely.
+    if (!user.isActive) {
       // Re-generate and re-send code (expires in 30 minutes) to ensure they can complete activation
       const newCode = Math.floor(100000 + Math.random() * 900000).toString();
       const newExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
@@ -248,7 +249,7 @@ async function activate(req, res) {
       return res.status(404).json({ error: 'Not Found', message: 'User not found.' });
     }
 
-    if (user.isVerified && user.isActive) {
+    if (user.isActive) {
       return res.status(400).json({ error: 'Bad Request', message: 'Account is already active.' });
     }
 
