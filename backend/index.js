@@ -15,6 +15,8 @@ const allowedOrigins = [
   'http://localhost:5173', // Vite local development frontend
   'http://localhost:3000', // Alt local dev port
   'http://127.0.0.1:5173',
+  'http://localhost',       // Capacitor Android local origin
+  'capacitor://localhost',  // Capacitor iOS local origin
   process.env.FRONTEND_URL  // Production frontend URL (Vercel)
 ].filter(Boolean);
 
