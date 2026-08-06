@@ -1,6 +1,17 @@
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
 
-let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Dynamically resolve API URL, fallback to local development only if not in native platform
+let API_URL = import.meta.env.VITE_API_URL || '';
+
+if (!API_URL) {
+  if (Capacitor.isNativePlatform()) {
+    console.warn('[rgClocker API] Warning: VITE_API_URL is empty in this native mobile build! Defaulting to localhost, which may fail on a physical device. Please configure your .env file.');
+    API_URL = 'http://localhost:5000/api';
+  } else {
+    API_URL = 'http://localhost:5000/api';
+  }
+}
 
 // 1. Remove any trailing slashes from the API URL
 API_URL = API_URL.trim().replace(/\/+$/, '');

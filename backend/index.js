@@ -17,6 +17,7 @@ const allowedOrigins = [
   'http://127.0.0.1:5173',
   'http://localhost',       // Capacitor Android local origin
   'capacitor://localhost',  // Capacitor iOS local origin
+  'https://rgclocker.vercel.app', // Production Vercel App
   process.env.FRONTEND_URL  // Production frontend URL (Vercel)
 ].filter(Boolean);
 
