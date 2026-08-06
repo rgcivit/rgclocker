@@ -9,6 +9,7 @@ import {
   Loader2, AlertTriangle, CloudUpload, Pencil 
 } from 'lucide-react';
 import { playLockSound } from '../utils/sounds';
+import { Capacitor } from '@capacitor/core';
 
 export default function LockerView() {
   const { lockerId } = useParams();
@@ -94,6 +95,59 @@ export default function LockerView() {
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       uploadFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleUploadClick = async (e) => {
+    // If running natively under Capacitor, intercept the click to avoid buggy WebView file inputs
+    if (Capacitor.isNativePlatform()) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (uploading) return;
+
+      try {
+        // Dynamically import the Capacitor file picker to prevent bundler issues on web
+        const { FilePicker } = await import('@capawesome/capacitor-file-picker');
+        const result = await FilePicker.pickFiles({
+          types: ['application/pdf'],
+          multiple: false,
+          readData: true
+        });
+
+        if (result.files && result.files.length > 0) {
+          const pickedFile = result.files[0];
+          if (!pickedFile.data) {
+            throw new Error('No se pudieron leer los datos del archivo.');
+          }
+
+          // Convert the base64 string back into binary byte arrays
+          const byteCharacters = atob(pickedFile.data);
+          const byteArrays = [];
+          for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+            const slice = byteCharacters.slice(offset, offset + 512);
+            const byteNumbers = new Array(slice.length);
+            for (let i = 0; i < slice.length; i++) {
+              byteNumbers[i] = slice.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            byteArrays.push(byteArray);
+          }
+          
+          // Construct a native File object compatible with our existing upload logic
+          const mimeType = pickedFile.mimeType || 'application/pdf';
+          const blob = new Blob(byteArrays, { type: mimeType });
+          const file = new File([blob], pickedFile.name || 'documento.pdf', { type: mimeType });
+
+          uploadFile(file);
+        }
+      } catch (err) {
+        if (err.message && err.message.toLowerCase().includes('cancel')) {
+          console.log('[Native File Picker] Selección cancelada por el usuario.');
+        } else {
+          console.error('[Native File Picker] Error picking file:', err);
+          setUploadError('Error al abrir o leer el archivo seleccionado.');
+        }
+      }
     }
   };
 
@@ -321,7 +375,11 @@ export default function LockerView() {
                 className="hidden"
                 disabled={uploading}
               />
-              <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center w-full h-full">
+              <label 
+                htmlFor="file-upload" 
+                onClick={handleUploadClick}
+                className="cursor-pointer flex flex-col items-center w-full h-full"
+              >
                 {uploading ? (
                   <div className="flex flex-col items-center py-4">
                     <Loader2 className="animate-spin text-emerald-400 mb-3" size={28} />

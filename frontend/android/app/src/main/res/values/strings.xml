@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">rgclocker</string>
+    <string name="title_activity_main">rgclocker</string>
+    <string name="package_name">com.rgcivit.rgclocker</string>
+    <string name="custom_url_scheme">com.rgcivit.rgclocker</string>
+</resources>

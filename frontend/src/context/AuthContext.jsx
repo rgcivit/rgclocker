@@ -5,7 +5,7 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(sessionStorage.getItem('rgclocker_token'));
+  const [token, setToken] = useState(localStorage.getItem('rgclocker_token'));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/login', { username, password });
       const { token: userToken, user: userData } = response.data;
       
-      sessionStorage.setItem('rgclocker_token', userToken);
+      localStorage.setItem('rgclocker_token', userToken);
       setToken(userToken);
       setUser(userData);
       return { success: true };
@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/verify-code', { username, code });
       const { token: userToken, user: userData } = response.data;
       
-      sessionStorage.setItem('rgclocker_token', userToken);
+      localStorage.setItem('rgclocker_token', userToken);
       setToken(userToken);
       setUser(userData);
       return { success: true };
@@ -91,12 +91,12 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     // Clear auth token
-    sessionStorage.removeItem('rgclocker_token');
+    localStorage.removeItem('rgclocker_token');
     
     // Clear all temporary locker tokens
-    Object.keys(sessionStorage).forEach(key => {
+    Object.keys(localStorage).forEach(key => {
       if (key.startsWith('rgclocker_token_')) {
-        sessionStorage.removeItem(key);
+        localStorage.removeItem(key);
       }
     });
 

@@ -32,13 +32,13 @@ api.interceptors.request.use(
     }
 
     // 1. Level 1 Security: Global JWT
-    const token = sessionStorage.getItem('rgclocker_token');
+    const token = localStorage.getItem('rgclocker_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
     // 2. Level 2 Security: Temporary Locker Token
-    // We can extract active locker token from sessionStorage or session state.
+    // We can extract active locker token from localStorage or session state.
     // To make it easy and decoupled from react state, we can retrieve it
     // from a naming pattern, e.g. 'rgclocker_lockertoken_<lockerId>'
     // we can pass lockerId in custom config headers or extract it from the URL
@@ -56,7 +56,7 @@ api.interceptors.request.use(
     }
 
     if (lockerId) {
-      const lockerToken = sessionStorage.getItem(`rgclocker_token_${lockerId}`);
+      const lockerToken = localStorage.getItem(`rgclocker_token_${lockerId}`);
       if (lockerToken) {
         config.headers['X-Locker-Token'] = lockerToken;
       }
