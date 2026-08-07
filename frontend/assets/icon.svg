@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <!-- Outer glowing background aura -->
+  <circle cx="32" cy="32" r="28" fill="rgba(16, 185, 129, 0.08)" />
+  
+  <!-- Shackle (arco del candado) -->
+  <path d="M18 26 V18 C18 10.27 24.27 4 32 4 C39.73 4 46 10.27 46 18 V26" stroke="#34d399" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- Body of the lock (cuerpo del candado) -->
+  <rect x="10" y="24" width="44" height="34" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="4.5" stroke-linejoin="round" />
+  
+  <!-- Accent highlight on body -->
+  <rect x="14" y="28" width="36" height="26" rx="6" fill="rgba(16, 185, 129, 0.05)" />
+  
+  <!-- Keyhole (ojo de la cerradura) -->
+  <circle cx="32" cy="37" r="4.5" fill="#34d399" />
+  <path d="M30.5 40.5 L33.5 40.5 L35 50 L29 50 Z" fill="#34d399" stroke-linejoin="round" />
+</svg>
