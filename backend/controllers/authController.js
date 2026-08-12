@@ -172,12 +172,16 @@ async function login(req, res) {
 
     // Find user
     const user = await User.findOne({ where: { username: normalizedUsername } });
+    console.log(`[Login Debug] Found user: ${user ? user.username : 'NOT FOUND'}`);
+
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized', message: 'Invalid username or password.' });
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    console.log(`[Login Debug] Password valid: ${isPasswordValid}`);
+
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Unauthorized', message: 'Invalid username or password.' });
     }
