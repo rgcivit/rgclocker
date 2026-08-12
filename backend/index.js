@@ -126,8 +126,8 @@ async function startServer() {
       console.warn('Please check your Google Drive environment variables in backend/.env\n');
     }
 
-    app.listen(PORT, () => {
-      console.log(`rgclocker secure API server running on port ${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`rgclocker secure API server running on port ${PORT} (Listening on all interfaces)`);
     });
   } catch (error) {
     console.error('Unable to start server:', error);
