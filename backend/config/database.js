@@ -5,30 +5,42 @@ const path = require('path');
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const dbUrl = process.env.DATABASE_URL;
+let sequelize;
 
-if (!dbUrl) {
-  console.warn('WARNING: DATABASE_URL is not set. Falling back to local default postgresql config.');
+if (!dbUrl || dbUrl.includes('localhost')) {
+  console.log('[Database] No production DB detected. Using SQLite for local development (no server required).');
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: path.join(__dirname, '../database.sqlite'),
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    define: {
+      timestamps: true,
+      underscored: true,
+    }
+  });
+} else {
+  sequelize = new Sequelize(dbUrl, {
+    dialect: 'postgres',
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    define: {
+      timestamps: true,
+      underscored: true,
+    },
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 15000,
+      idle: 10000
+    },
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    }
+  });
 }
 
-const sequelize = new Sequelize(dbUrl || 'postgres://postgres:postgres@localhost:5432/rgclocker', {
-  dialect: 'postgres',
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
-  define: {
-    timestamps: true,
-    underscored: true, // Use snake_case for column names in the DB
-  },
-  pool: {
-    max: 5,
-    min: 0,
-    acquire: 15000, // 15 seconds max connection attempt timeout
-    idle: 10000
-  },
-  dialectOptions: (process.env.NODE_ENV === 'production' || (dbUrl && !dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1'))) ? {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false // Required for cloud databases like Render, Railway, Supabase, Neon
-    }
-  } : {}
-});
+module.exports = sequelize;
 
 module.exports = sequelize;
