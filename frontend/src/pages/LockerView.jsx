@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { playLockSound } from '../utils/sounds';
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 export default function LockerView() {
   const { lockerId } = useParams();
@@ -242,16 +243,40 @@ export default function LockerView() {
       const objectUrl = URL.createObjectURL(fileBlob);
 
       if (isDownload) {
-        // Trigger direct browser download
-        const link = document.createElement('a');
-        link.href = objectUrl;
-        link.setAttribute('download', filename);
-        document.body.appendChild(link);
-        link.click();
-        
-        // Clean up
-        document.body.removeChild(link);
-        URL.revokeObjectURL(objectUrl);
+        if (Capacitor.isNativePlatform()) {
+          // Native Download Flow using Filesystem API
+          try {
+            // Convert Blob to Base64 for Capacitor Filesystem
+            const reader = new FileReader();
+            reader.readAsDataURL(fileBlob);
+            reader.onloadend = async () => {
+              const base64data = reader.result.split(',')[1];
+
+              await Filesystem.writeFile({
+                path: filename,
+                data: base64data,
+                directory: Directory.Documents,
+                recursive: true
+              });
+
+              alert(`Archivo "${filename}" guardado en tu carpeta de Documentos.`);
+            };
+          } catch (fsErr) {
+            console.error('Native filesystem error:', fsErr);
+            alert('Error al guardar el archivo en el dispositivo.');
+          }
+        } else {
+          // Trigger direct browser download
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.setAttribute('download', filename);
+          document.body.appendChild(link);
+          link.click();
+
+          // Clean up
+          document.body.removeChild(link);
+          URL.revokeObjectURL(objectUrl);
+        }
       } else {
         // Open PDF viewer inside React
         setPreviewUrl(objectUrl);

@@ -1,13 +1,15 @@
 import axios from 'axios';
 import { Capacitor } from '@capacitor/core';
 
-// Dynamically resolve API URL, fallback to local development only if not in native platform
+// Dynamically resolve API URL
 let API_URL = import.meta.env.VITE_API_URL || '';
 
 if (!API_URL) {
+  // Use a slightly more aggressive fallback for Android Emulators vs physical devices
   if (Capacitor.isNativePlatform()) {
-    console.warn('[rgClocker API] Warning: VITE_API_URL is empty in this native mobile build! Defaulting to localhost, which may fail on a physical device. Please configure your .env file.');
-    API_URL = 'http://localhost:5000/api';
+    // If you are using a physical device, 10.0.0.139 was detected as your PC IP.
+    // If you are using an emulator, 10.0.2.2 is the standard gateway.
+    API_URL = 'http://10.0.0.139:5000/api';
   } else {
     API_URL = 'http://localhost:5000/api';
   }

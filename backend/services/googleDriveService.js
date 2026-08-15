@@ -175,6 +175,7 @@ async function downloadFile(fileId) {
   await validateOAuth2Credentials();
 
   try {
+    console.log(`[Google Drive Service] Starting download for File ID: ${fileId}`);
     const response = await drive.files.get(
       { fileId, alt: 'media' },
       { responseType: 'stream' }
@@ -182,15 +183,26 @@ async function downloadFile(fileId) {
 
     return new Promise((resolve, reject) => {
       const chunks = [];
-      response.data.on('data', (chunk) => chunks.push(chunk));
-      response.data.on('end', () => resolve(Buffer.concat(chunks)));
+      response.data.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+      response.data.on('end', () => {
+        const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+        console.log(`[Google Drive Service] Download complete. Total bytes: ${totalLength}`);
+        resolve(Buffer.concat(chunks));
+      });
       response.data.on('error', (err) => {
         console.error('[Google Drive Service] Stream download error:', err);
         reject(err);
       });
     });
   } catch (error) {
-    console.error('[Google Drive Service] File download failed:', error);
+    console.error('[Google Drive Service] File download failed:', error.message);
+    if (error.code === 404) {
+      console.error(' -> The file does not exist on Drive. It might have been deleted manually.');
+    } else if (error.code === 403) {
+      console.error(' -> Access Denied. Check Service Account permissions on the folder.');
+    }
     throw new Error(`Google Drive download failed: ${error.message}`);
   }
 }
