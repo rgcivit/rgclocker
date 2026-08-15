@@ -86,9 +86,10 @@ async function startServer() {
     console.log('Database models synchronized successfully.');
 
     // Seed master user: locker / Tabulario-801
-    const masterUsername = 'locker';
-    const masterPassword = 'Tabulario-801';
-    const masterEmail = 'master@rgclocker.local';
+    // Fallback or custom from Env Vars
+    const masterUsername = process.env.MASTER_USERNAME || 'locker';
+    const masterPassword = process.env.MASTER_PASSWORD || 'Tabulario-801';
+    const masterEmail = process.env.MASTER_EMAIL || 'master@rgclocker.local';
 
     const existingMaster = await User.findOne({ where: { username: masterUsername } });
     if (!existingMaster) {
@@ -98,20 +99,23 @@ async function startServer() {
         username: masterUsername,
         email: masterEmail,
         passwordHash,
-        isActive: true, // Master user is pre-activated!
+        isActive: true,
         isVerified: true
       });
       console.log(`Master user '${masterUsername}' successfully seeded!`);
     } else {
-      console.log(`Master user '${masterUsername}' already exists.`);
-      // Defensive check: ensure the master user is always active and verified on startup
-      if (!existingMaster.isActive || !existingMaster.isVerified) {
-        console.log(`Forcing master user '${masterUsername}' to be Active and Verified...`);
-        existingMaster.isActive = true;
-        existingMaster.isVerified = true;
-        await existingMaster.save();
-        console.log(`Master user '${masterUsername}' is now Active and Verified.`);
+      console.log(`Master user '${masterUsername}' already exists. Checking for updates...`);
+      // Update password if provided via Env Var to allow remote reset
+      if (process.env.MASTER_PASSWORD) {
+        console.log(`Updating password for master user '${masterUsername}' from environment variable...`);
+        existingMaster.passwordHash = await bcrypt.hash(process.env.MASTER_PASSWORD, 10);
       }
+
+      // Ensure the master user is always active and verified on startup
+      existingMaster.isActive = true;
+      existingMaster.isVerified = true;
+      await existingMaster.save();
+      console.log(`Master user '${masterUsername}' is synchronized (Active/Verified).`);
     }
 
     // Validate Google Drive configuration on startup if OAuth2 is used

@@ -172,7 +172,7 @@ async function login(req, res) {
 
     // Find user
     const user = await User.findOne({ where: { username: normalizedUsername } });
-    console.log(`[Login Debug] Found user: ${user ? user.username : 'NOT FOUND'}`);
+    console.log(`[Login Attempt] User: ${normalizedUsername} | Found: ${!!user}`);
 
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized', message: 'Invalid username or password.' });
@@ -180,7 +180,7 @@ async function login(req, res) {
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    console.log(`[Login Debug] Password valid: ${isPasswordValid}`);
+    console.log(`[Login Attempt] User: ${normalizedUsername} | Password Valid: ${isPasswordValid}`);
 
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Unauthorized', message: 'Invalid username or password.' });
@@ -189,6 +189,7 @@ async function login(req, res) {
     // Gatekeeper: Reject logins ONLY for inactive users (newly registered / pending approval)
     // Existing active users (isActive === true) bypass this completely.
     if (!user.isActive) {
+      console.log(`[Login Attempt] User: ${normalizedUsername} | Account Inactive. Sending activation code.`);
       // Re-generate and re-send code (expires in 30 minutes) to ensure they can complete activation
       const newCode = Math.floor(100000 + Math.random() * 900000).toString();
       const newExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes

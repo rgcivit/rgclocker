@@ -103,11 +103,30 @@ async function downloadDocument(req, res) {
     console.log(`Downloading encrypted file ${doc.storedName} (${doc.googleDriveFileId}) from Google Drive...`);
     
     // 1. Download encrypted buffer stream from Google Drive
-    const encryptedBuffer = await googleDriveService.downloadFile(doc.googleDriveFileId);
+    let encryptedBuffer;
+    try {
+      encryptedBuffer = await googleDriveService.downloadFile(doc.googleDriveFileId);
+    } catch (driveError) {
+      console.error(`[Download Error] Failed to fetch file from Google Drive:`, driveError.message);
+      return res.status(502).json({
+        error: 'Bad Gateway',
+        message: 'No se pudo obtener el archivo desde Google Drive. Verifica la conexión y permisos del servicio.',
+        details: process.env.NODE_ENV === 'development' ? driveError.message : undefined
+      });
+    }
     
     // 2. Decrypt buffer on-the-fly in-memory
-    console.log(`Decrypting file ${doc.originalName} with stored IV and Auth Tag...`);
-    const decryptedBuffer = decryptBuffer(encryptedBuffer, doc.iv, doc.authTag);
+    let decryptedBuffer;
+    try {
+      console.log(`Decrypting file ${doc.originalName} with stored IV and Auth Tag...`);
+      decryptedBuffer = decryptBuffer(encryptedBuffer, doc.iv, doc.authTag);
+    } catch (decryptError) {
+      console.error(`[Download Error] Decryption failed for file ${doc.originalName}:`, decryptError.message);
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Error crítico al descifrar el documento. Es posible que la clave de cifrado haya cambiado o el archivo esté corrupto.'
+      });
+    }
 
     // 3. Send file back with appropriate headers
     res.setHeader('Content-Type', doc.mimeType);

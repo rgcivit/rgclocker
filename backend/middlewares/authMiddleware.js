@@ -19,9 +19,10 @@ function authMiddleware(req, res, next) {
   }
 
   const token = authHeader.split(' ')[1];
+  const secret = process.env.JWT_SECRET || 'dev_jwt_secret_key_rgclocker_vault_2026';
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev_jwt_secret_key_rgclocker_vault_2026');
+    const decoded = jwt.verify(token, secret);
     
     // Attach user payload to request
     req.user = {
@@ -32,10 +33,17 @@ function authMiddleware(req, res, next) {
     
     next();
   } catch (error) {
-    console.error('JWT validation error:', error.message);
+    console.error('[Auth Middleware] JWT validation error:', error.message);
+    let message = 'Invalid authentication token.';
+    if (error.name === 'TokenExpiredError') {
+      message = 'Authentication token has expired. Please login again.';
+    } else if (error.name === 'JsonWebTokenError') {
+      message = 'Invalid token or session secret has changed. Please login again.';
+    }
+
     return res.status(401).json({
       error: 'Unauthorized',
-      message: error.name === 'TokenExpiredError' ? 'Authentication token has expired.' : 'Invalid authentication token.'
+      message
     });
   }
 }

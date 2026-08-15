@@ -78,42 +78,57 @@ function getDriveClient() {
 
   // 2. Fallback to Service Account
   const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH;
+  const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
   if (!folderId) {
     console.warn('\n[Google Drive Service] WARNING: GOOGLE_DRIVE_FOLDER_ID is not configured.');
     return null;
   }
 
-  if (!keyPath) {
-    console.warn('\n[Google Drive Service] WARNING: Google Drive is not configured yet.');
-    console.warn('[Google Drive Service] Ensure either OAuth2 (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN) or Service Account (GOOGLE_SERVICE_ACCOUNT_KEY_PATH) are set in your .env.\n');
-    return null;
+  // A. Priority: Service Account JSON via Env Var (Best for Render/Cloud)
+  if (serviceAccountJson) {
+    try {
+      console.log('[Google Drive Service] Initializing via Service Account JSON from Environment Variable.');
+      const credentials = JSON.parse(serviceAccountJson);
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
+      });
+      driveClient = google.drive({ version: 'v3', auth });
+      return driveClient;
+    } catch (error) {
+      console.error('[Google Drive Service] Failed to initialize via GOOGLE_SERVICE_ACCOUNT_JSON:', error.message);
+    }
   }
 
-  // Resolve absolute path
-  const absoluteKeyPath = path.isAbsolute(keyPath)
-    ? keyPath
-    : path.resolve(process.cwd(), keyPath);
+  // B. Fallback: Service Account JSON via File Path (Local development)
+  if (keyPath) {
+    // Resolve absolute path
+    const absoluteKeyPath = path.isAbsolute(keyPath)
+      ? keyPath
+      : path.resolve(process.cwd(), keyPath);
 
-  if (!fs.existsSync(absoluteKeyPath)) {
-    console.warn(`\n[Google Drive Service] WARNING: Service Account JSON file not found at: ${absoluteKeyPath}`);
-    console.warn('[Google Drive Service] Google Drive operations will fail until this file is supplied.\n');
-    return null;
+    if (fs.existsSync(absoluteKeyPath)) {
+      try {
+        const auth = new google.auth.GoogleAuth({
+          keyFile: absoluteKeyPath,
+          scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
+        });
+
+        driveClient = google.drive({ version: 'v3', auth });
+        console.log('[Google Drive Service] Client initialized successfully via Service Account File.');
+        return driveClient;
+      } catch (error) {
+        console.error('[Google Drive Service] Failed to initialize Service Account client from file:', error.message);
+      }
+    } else {
+      console.warn(`\n[Google Drive Service] WARNING: Service Account JSON file not found at: ${absoluteKeyPath}`);
+    }
   }
 
-  try {
-    const auth = new google.auth.GoogleAuth({
-      keyFile: absoluteKeyPath,
-      scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
-    });
-
-    driveClient = google.drive({ version: 'v3', auth });
-    console.log('[Google Drive Service] Client initialized successfully via Service Account.');
-    return driveClient;
-  } catch (error) {
-    console.error('[Google Drive Service] Failed to initialize Service Account client:', error.message);
-    return null;
-  }
+  console.warn('\n[Google Drive Service] WARNING: Google Drive is not configured yet.');
+  console.warn('[Google Drive Service] Ensure OAuth2 (CLIENT_ID, SECRET, REFRESH_TOKEN) or Service Account (KEY_PATH or JSON env var) are set.\n');
+  return null;
 }
 
 /**
