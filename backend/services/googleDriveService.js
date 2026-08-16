@@ -56,27 +56,6 @@ function getDriveClient() {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET ? process.env.GOOGLE_CLIENT_SECRET.trim() : null;
   const refreshToken = process.env.GOOGLE_REFRESH_TOKEN ? process.env.GOOGLE_REFRESH_TOKEN.trim() : null;
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID ? process.env.GOOGLE_DRIVE_FOLDER_ID.trim() : null;
-
-  // 1. Try OAuth2 (User Account Flow) first
-  if (clientId && clientSecret && refreshToken) {
-    try {
-      console.log('[Google Drive Service] Initializing google.auth.OAuth2 with:');
-      console.log(' - Client ID:', clientId);
-      console.log(' - Client Secret:', clientSecret);
-      console.log(' - Refresh Token:', refreshToken);
-
-      const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
-      oauth2Client.setCredentials({ refresh_token: refreshToken });
-      oauth2ClientInstance = oauth2Client; // Save reference for async validation
-      driveClient = google.drive({ version: 'v3', auth: oauth2Client });
-      console.log('[Google Drive Service] Client initialized successfully via OAuth2 (User Account).');
-      return driveClient;
-    } catch (error) {
-      console.error('[Google Drive Service] Failed to initialize OAuth2 client:', error.message);
-    }
-  }
-
-  // 2. Fallback to Service Account
   const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH;
   const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
@@ -85,7 +64,7 @@ function getDriveClient() {
     return null;
   }
 
-  // A. Priority: Service Account JSON via Env Var (Best for Render/Cloud)
+  // 1. Try Service Account JSON via Env Var (Highest Priority for Cloud/Render)
   if (serviceAccountJson) {
     try {
       console.log('[Google Drive Service] Initializing via Service Account JSON from Environment Variable.');
@@ -95,39 +74,47 @@ function getDriveClient() {
         scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
       });
       driveClient = google.drive({ version: 'v3', auth });
+      oauth2ClientInstance = null; // Ensure we don't try to validate OAuth2
       return driveClient;
     } catch (error) {
       console.error('[Google Drive Service] Failed to initialize via GOOGLE_SERVICE_ACCOUNT_JSON:', error.message);
     }
   }
 
-  // B. Fallback: Service Account JSON via File Path (Local development)
-  if (keyPath) {
-    // Resolve absolute path
-    const absoluteKeyPath = path.isAbsolute(keyPath)
-      ? keyPath
-      : path.resolve(process.cwd(), keyPath);
+  // 2. Try OAuth2 (User Account Flow)
+  if (clientId && clientSecret && refreshToken) {
+    try {
+      console.log('[Google Drive Service] Initializing google.auth.OAuth2...');
+      const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+      oauth2Client.setCredentials({ refresh_token: refreshToken });
+      oauth2ClientInstance = oauth2Client;
+      driveClient = google.drive({ version: 'v3', auth: oauth2Client });
+      return driveClient;
+    } catch (error) {
+      console.error('[Google Drive Service] Failed to initialize OAuth2 client:', error.message);
+    }
+  }
 
+  // 3. Fallback: Service Account JSON via File Path (Local development)
+  if (keyPath) {
+    const absoluteKeyPath = path.isAbsolute(keyPath) ? keyPath : path.resolve(process.cwd(), keyPath);
     if (fs.existsSync(absoluteKeyPath)) {
       try {
         const auth = new google.auth.GoogleAuth({
           keyFile: absoluteKeyPath,
           scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
         });
-
         driveClient = google.drive({ version: 'v3', auth });
+        oauth2ClientInstance = null;
         console.log('[Google Drive Service] Client initialized successfully via Service Account File.');
         return driveClient;
       } catch (error) {
         console.error('[Google Drive Service] Failed to initialize Service Account client from file:', error.message);
       }
-    } else {
-      console.warn(`\n[Google Drive Service] WARNING: Service Account JSON file not found at: ${absoluteKeyPath}`);
     }
   }
 
   console.warn('\n[Google Drive Service] WARNING: Google Drive is not configured yet.');
-  console.warn('[Google Drive Service] Ensure OAuth2 (CLIENT_ID, SECRET, REFRESH_TOKEN) or Service Account (KEY_PATH or JSON env var) are set.\n');
   return null;
 }
 
@@ -212,11 +199,11 @@ async function downloadFile(fileId) {
       });
     });
   } catch (error) {
-    console.error('[Google Drive Service] File download failed:', error.message);
-    if (error.code === 404) {
-      console.error(' -> The file does not exist on Drive. It might have been deleted manually.');
-    } else if (error.code === 403) {
-      console.error(' -> Access Denied. Check Service Account permissions on the folder.');
+    console.error(`[Google Drive Error] Code: ${error.code || 'UNKNOWN'} | Message: ${error.message}`);
+    if (error.code === 403) {
+      console.error(' -> ACCESO DENEGADO: La Service Account no tiene permisos en esta carpeta o la API de Drive está desactivada.');
+    } else if (error.code === 404) {
+      console.error(' -> NO ENCONTRADO: El archivo no existe en Drive. ¿Es un archivo de una instalación anterior?');
     }
     throw new Error(`Google Drive download failed: ${error.message}`);
   }
