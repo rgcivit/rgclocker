@@ -58,7 +58,7 @@ const lockerRoutes = require('./routes/lockerRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 
 const bcrypt = require('bcryptjs');
-const { User } = require('./models');
+const { User, Locker } = require('./models');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/lockers', lockerRoutes);
@@ -116,6 +116,17 @@ async function startServer() {
       existingMaster.isVerified = true;
       await existingMaster.save();
       console.log(`Master user '${masterUsername}' is synchronized (Active/Verified).`);
+
+      // NEW: Update Locker PINs for the Master User if MASTER_LOCKER_PIN is provided
+      if (process.env.MASTER_LOCKER_PIN) {
+        console.log(`Updating all locker PINs for user '${masterUsername}' from environment variable...`);
+        const pinHash = await bcrypt.hash(process.env.MASTER_LOCKER_PIN, 10);
+        const updatedCount = await Locker.update(
+          { pinHash },
+          { where: { userId: existingMaster.id } }
+        );
+        console.log(`Successfully updated ${updatedCount[0]} lockers to the new master PIN.`);
+      }
     }
 
     // Validate Google Drive configuration on startup if OAuth2 is used
