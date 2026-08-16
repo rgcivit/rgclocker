@@ -69,6 +69,14 @@ function getDriveClient() {
     try {
       console.log('[Google Drive Service] Initializing via Service Account JSON from Environment Variable.');
       const credentials = JSON.parse(serviceAccountJson);
+
+      // Fix: Ensure private key formatting is correct (Render/Env vars often mess up newlines)
+      if (credentials.private_key && typeof credentials.private_key === 'string') {
+        credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+      }
+
+      console.log(`[Google Drive Service] Using Service Account: ${credentials.client_email}`);
+
       const auth = new google.auth.GoogleAuth({
         credentials,
         scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
