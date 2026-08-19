@@ -74,21 +74,19 @@ function getDriveClient() {
       if (credentials.private_key && typeof credentials.private_key === 'string') {
         credentials.private_key = credentials.private_key
           .replace(/\\n/g, '\n') // Fix escaped newlines
-          .replace(/\n\s+/g, '\n') // Remove spaces after newlines
-          .trim(); // Remove leading/trailing whitespace
+          .replace(/\\r/g, '')   // Remove carriage returns
+          .replace(/"/g, '')     // Remove accidental quotes
+          .trim();               // Remove leading/trailing whitespace
 
-        // Ensure it starts and ends correctly
-        if (!credentials.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
-           console.warn('[Google Drive Service] Private key does not start with standard header. Formatting might be severely broken.');
-        }
+        console.log(`[Google Drive Service] Private key length: ${credentials.private_key.length}`);
       }
 
       console.log(`[Google Drive Service] Using Service Account: ${credentials.client_email}`);
 
-      const auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
-      });
+      // Use the official fromJSON method for better compatibility
+      const auth = google.auth.fromJSON(credentials);
+      auth.scopes = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'];
+
       driveClient = google.drive({ version: 'v3', auth });
       oauth2ClientInstance = null; // Ensure we don't try to validate OAuth2
       return driveClient;
