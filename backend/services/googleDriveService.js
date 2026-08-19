@@ -70,9 +70,17 @@ function getDriveClient() {
       console.log('[Google Drive Service] Initializing via Service Account JSON from Environment Variable.');
       const credentials = JSON.parse(serviceAccountJson);
 
-      // Fix: Ensure private key formatting is correct (Render/Env vars often mess up newlines)
+      // Ultra-robust fix: Handle all common formatting issues from Env Vars
       if (credentials.private_key && typeof credentials.private_key === 'string') {
-        credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+        credentials.private_key = credentials.private_key
+          .replace(/\\n/g, '\n') // Fix escaped newlines
+          .replace(/\n\s+/g, '\n') // Remove spaces after newlines
+          .trim(); // Remove leading/trailing whitespace
+
+        // Ensure it starts and ends correctly
+        if (!credentials.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
+           console.warn('[Google Drive Service] Private key does not start with standard header. Formatting might be severely broken.');
+        }
       }
 
       console.log(`[Google Drive Service] Using Service Account: ${credentials.client_email}`);
