@@ -70,28 +70,45 @@ function getDriveClient() {
       console.log('[Google Drive Service] Initializing via Service Account JSON from Environment Variable.');
       const credentials = JSON.parse(serviceAccountJson);
 
-      // Ultra-robust fix: Handle all common formatting issues from Env Vars
+      // MEGA-ROBUST FIX: Final boss of private key formatting
       if (credentials.private_key && typeof credentials.private_key === 'string') {
-        credentials.private_key = credentials.private_key
-          .replace(/\\n/g, '\n') // Fix escaped newlines
-          .replace(/\\r/g, '')   // Remove carriage returns
-          .replace(/"/g, '')     // Remove accidental quotes
-          .trim();               // Remove leading/trailing whitespace
+        let key = credentials.private_key;
 
-        console.log(`[Google Drive Service] Private key length: ${credentials.private_key.length}`);
+        // 1. Unescape real newlines if they were escaped as string "\n"
+        key = key.replace(/\\n/g, '\n');
+
+        // 2. Remove any accidental wrapping quotes that might have been pasted
+        key = key.replace(/^["']|["']$/g, '');
+
+        // 3. Remove all spaces and fix the PEM structure
+        const header = '-----BEGIN PRIVATE KEY-----';
+        const footer = '-----END PRIVATE KEY-----';
+
+        if (key.includes(header) && key.includes(footer)) {
+          const body = key.split(header)[1].split(footer)[0].replace(/\s+/g, '');
+          // Reconstruct with proper newlines every 64 chars
+          const chunks = body.match(/.{1,64}/g);
+          const formattedBody = chunks ? chunks.join('\n') : body;
+          key = `${header}\n${formattedBody}\n${footer}\n`;
+        }
+
+        credentials.private_key = key;
+        console.log(`[Google Drive Service] Sanitized Private Key. Length: ${credentials.private_key.length}`);
       }
 
       console.log(`[Google Drive Service] Using Service Account: ${credentials.client_email}`);
 
-      // Use the official fromJSON method for better compatibility
-      const auth = google.auth.fromJSON(credentials);
-      auth.scopes = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'];
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
+      });
 
       driveClient = google.drive({ version: 'v3', auth });
       oauth2ClientInstance = null; // Ensure we don't try to validate OAuth2
       return driveClient;
     } catch (error) {
-      console.error('[Google Drive Service] Failed to initialize via GOOGLE_SERVICE_ACCOUNT_JSON:', error.message);
+      console.error('[Google Drive Service] CRITICAL ERROR during initialization:', error.message);
+      throw error;
     }
   }
 
