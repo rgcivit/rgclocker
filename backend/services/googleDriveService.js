@@ -68,14 +68,21 @@ function getDriveClient() {
   if (serviceAccountJson) {
     try {
       console.log('[Google Drive Service] Initializing via Service Account JSON from Environment Variable.');
-      const credentials = JSON.parse(serviceAccountJson);
+
+      // Sanitization: Handle cases where the JSON itself might be stringified with escaped characters
+      let sanitizedJson = serviceAccountJson.trim();
+      if (sanitizedJson.startsWith('"') && sanitizedJson.endsWith('"')) {
+        sanitizedJson = sanitizedJson.slice(1, -1).replace(/\\"/g, '"');
+      }
+
+      const credentials = JSON.parse(sanitizedJson);
 
       // MEGA-ROBUST FIX: Final boss of private key formatting
       if (credentials.private_key && typeof credentials.private_key === 'string') {
         let key = credentials.private_key;
 
-        // 1. Unescape real newlines if they were escaped as string "\n"
-        key = key.replace(/\\n/g, '\n');
+        // Fix: Handle double backslashes and escaped newlines
+        key = key.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n');
 
         // 2. Remove any accidental wrapping quotes that might have been pasted
         key = key.replace(/^["']|["']$/g, '');
